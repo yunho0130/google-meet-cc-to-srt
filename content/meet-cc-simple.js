@@ -1064,27 +1064,6 @@ class SimpleCCCapturer {
     const title = document.querySelector('.cc-title');
     if (title) title.textContent = this.t('title');
 
-    // Update guide title
-    const guideTitle = document.querySelector('.cc-guide-header span');
-    if (guideTitle) guideTitle.textContent = this.t('guideTitle');
-
-    // Update guide steps
-    const guideSteps = document.querySelectorAll('.cc-guide-content ol li');
-    const steps = this.t('guideSteps');
-    guideSteps.forEach((li, i) => {
-      if (steps[i]) li.textContent = steps[i];
-    });
-
-    // Update shortcuts
-    const shortcutsTitle = document.querySelector('.cc-shortcuts-title');
-    if (shortcutsTitle) shortcutsTitle.textContent = this.t('shortcutsTitle');
-
-    const shortcutLabels = document.querySelectorAll('.cc-shortcut-label');
-    if (shortcutLabels.length >= 2) {
-      shortcutLabels[0].textContent = this.t('shortcuts.download');
-      shortcutLabels[1].textContent = this.t('shortcuts.copy');
-    }
-
     // Update status text
     const statusText = document.getElementById('cc-status-text');
     if (statusText) {
@@ -1109,11 +1088,13 @@ class SimpleCCCapturer {
     const placeholder = document.querySelector('.cc-placeholder');
     if (placeholder) placeholder.textContent = this.t('placeholder');
 
-    // Update language toggle button
+    // Update language toggle button - show target language (language to switch TO)
     const langToggle = document.getElementById('cc-lang-toggle');
     if (langToggle) {
-      langToggle.textContent = this.currentLanguage.toUpperCase();
-      langToggle.title = this.currentLanguage === 'en' ? 'Switch to Korean' : 'Switch to English';
+      // Show the language we can switch TO, not the current language
+      const targetLang = this.currentLanguage === 'en' ? 'KO' : 'EN';
+      langToggle.textContent = targetLang;
+      langToggle.title = this.currentLanguage === 'en' ? '한국어로 전환' : 'Switch to English';
     }
   }
 
@@ -2502,34 +2483,10 @@ async function createSimpleUI() {
     <div class="cc-header">
       <span class="cc-title">${capturer.t('title')}</span>
       <div class="cc-controls">
-        <button id="cc-lang-toggle" class="cc-btn cc-btn-icon" title="Switch language">${capturer.currentLanguage.toUpperCase()}</button>
+        <button id="cc-lang-toggle" class="cc-btn cc-btn-icon" title="${capturer.currentLanguage === 'en' ? '한국어로 전환' : 'Switch to English'}">${capturer.currentLanguage === 'en' ? 'KO' : 'EN'}</button>
         <button id="cc-settings-btn" class="cc-btn cc-btn-icon" title="${capturer.t('buttons.settings')}">&#9881;</button>
         <button id="cc-help-btn" class="cc-btn cc-btn-icon" title="${capturer.t('buttons.help')}">?</button>
         <button id="cc-minimize" class="cc-btn cc-btn-icon">&#8722;</button>
-      </div>
-    </div>
-
-    <!-- Usage Guide (collapsible) -->
-    <div id="cc-usage-guide" class="cc-guide">
-      <div class="cc-guide-header">
-        <span>${capturer.t('guideTitle')}</span>
-        <button id="cc-guide-toggle" class="cc-btn-collapse">&#8722;</button>
-      </div>
-      <div class="cc-guide-content" id="cc-guide-content">
-        <ol>
-          ${capturer.t('guideSteps').map(step => `<li>${step}</li>`).join('')}
-        </ol>
-        <div class="cc-shortcuts">
-          <div class="cc-shortcuts-title">${capturer.t('shortcutsTitle')}</div>
-          <div class="cc-shortcut-item">
-            <kbd>Ctrl+Shift+D</kbd>
-            <span class="cc-shortcut-label">${capturer.t('shortcuts.download')}</span>
-          </div>
-          <div class="cc-shortcut-item">
-            <kbd>Ctrl+Shift+C</kbd>
-            <span class="cc-shortcut-label">${capturer.t('shortcuts.copy')}</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -2572,20 +2529,11 @@ async function createSimpleUI() {
   // Restore UI state
   if (capturer.config.get('overlayMinimized')) {
     const panel = document.getElementById('cc-transcript-panel');
-    const guide = document.getElementById('cc-usage-guide');
     const actions = document.querySelector('.cc-actions');
     const btn = document.getElementById('cc-minimize');
     if (panel) panel.style.display = 'none';
-    if (guide) guide.style.display = 'none';
     if (actions) actions.style.display = 'none';
     if (btn) btn.innerHTML = '&#43;';
-  }
-
-  if (capturer.config.get('guideCollapsed')) {
-    const guideContent = document.getElementById('cc-guide-content');
-    const guideToggle = document.getElementById('cc-guide-toggle');
-    if (guideContent) guideContent.style.display = 'none';
-    if (guideToggle) guideToggle.innerHTML = '&#43;';
   }
 
   // Restore captions if available
@@ -2648,7 +2596,6 @@ async function createSimpleUI() {
   // Minimize button
   document.getElementById('cc-minimize').onclick = async () => {
     const panel = document.getElementById('cc-transcript-panel');
-    const guide = document.getElementById('cc-usage-guide');
     const actions = document.querySelector('.cc-actions');
     const statusBar = document.querySelector('.cc-status-bar');
     const pendingArea = document.getElementById('cc-pending-area');
@@ -2656,34 +2603,16 @@ async function createSimpleUI() {
 
     if (panel.style.display === 'none') {
       panel.style.display = 'flex';
-      if (guide) guide.style.display = 'block';
       if (actions) actions.style.display = 'flex';
       if (statusBar) statusBar.style.display = 'flex';
       btn.innerHTML = '&#8722;';
       await capturer.config.save('overlayMinimized', false);
     } else {
       panel.style.display = 'none';
-      if (guide) guide.style.display = 'none';
       if (actions) actions.style.display = 'none';
       if (pendingArea) pendingArea.style.display = 'none';
       btn.innerHTML = '&#43;';
       await capturer.config.save('overlayMinimized', true);
-    }
-  };
-
-  // Guide toggle
-  document.getElementById('cc-guide-toggle').onclick = async () => {
-    const guideContent = document.getElementById('cc-guide-content');
-    const btn = document.getElementById('cc-guide-toggle');
-
-    if (guideContent.style.display === 'none') {
-      guideContent.style.display = 'block';
-      btn.innerHTML = '&#8722;';
-      await capturer.config.save('guideCollapsed', false);
-    } else {
-      guideContent.style.display = 'none';
-      btn.innerHTML = '&#43;';
-      await capturer.config.save('guideCollapsed', true);
     }
   };
 
