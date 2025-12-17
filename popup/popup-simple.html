@@ -12,17 +12,26 @@
     }
 
     body {
-      width: 350px;
-      padding: 20px;
+      width: 380px;
       font-family: 'Segoe UI', Arial, sans-serif;
       background: #202124;
       color: #e8eaed;
     }
 
+    /* Main view and History view containers */
+    .view {
+      display: none;
+      padding: 20px;
+    }
+
+    .view.active {
+      display: block;
+    }
+
     .header {
       text-align: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
@@ -34,6 +43,103 @@
 
     .subtitle {
       font-size: 12px;
+      color: #9aa0a6;
+    }
+
+    /* Quick Guide Section */
+    .guide-section {
+      background: rgba(66, 133, 244, 0.1);
+      border-radius: 8px;
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+
+    .guide-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .guide-header:hover {
+      background: rgba(66, 133, 244, 0.15);
+    }
+
+    .guide-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #8ab4f8;
+    }
+
+    .guide-toggle {
+      background: none;
+      border: none;
+      color: #8ab4f8;
+      font-size: 14px;
+      cursor: pointer;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .guide-content {
+      padding: 0 12px 12px;
+      display: block;
+    }
+
+    .guide-content.collapsed {
+      display: none;
+    }
+
+    .guide-content ol {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 12px;
+      color: #bdc1c6;
+      line-height: 1.7;
+    }
+
+    .guide-content li {
+      margin-bottom: 2px;
+    }
+
+    .shortcuts {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .shortcuts-title {
+      font-size: 11px;
+      color: #9aa0a6;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .shortcut-item kbd {
+      background: rgba(50, 51, 54, 0.8);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      color: #e8eaed;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .shortcut-label {
+      font-size: 11px;
       color: #9aa0a6;
     }
 
@@ -80,6 +186,10 @@
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     .btn:disabled {
@@ -123,29 +233,22 @@
       background: rgba(138, 180, 248, 0.3);
     }
 
-    .instructions {
-      margin-top: 20px;
-      padding: 12px;
-      background: rgba(138, 180, 248, 0.1);
-      border-radius: 8px;
-      font-size: 12px;
-      color: #9aa0a6;
-      line-height: 1.5;
+    .btn-history {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
     }
 
-    .instructions strong {
-      color: #8ab4f8;
-      display: block;
-      margin-bottom: 5px;
+    .btn-history:hover:not(:disabled) {
+      background: rgba(255, 193, 7, 0.3);
     }
 
-    .instructions ol {
-      margin-left: 20px;
-      margin-top: 5px;
+    .btn-row {
+      display: flex;
+      gap: 10px;
     }
 
-    .instructions li {
-      margin-bottom: 3px;
+    .btn-row .btn {
+      flex: 1;
     }
 
     .alert {
@@ -167,43 +270,300 @@
       color: #81c995;
       border: 1px solid rgba(129, 201, 149, 0.3);
     }
+
+    /* History View Styles */
+    .history-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-back {
+      background: none;
+      border: none;
+      color: #8ab4f8;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .btn-back:hover {
+      background: rgba(138, 180, 248, 0.2);
+    }
+
+    .history-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .history-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .history-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .history-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    .history-item {
+      background: rgba(41, 42, 45, 0.8);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .history-item:hover {
+      background: rgba(50, 51, 54, 0.9);
+    }
+
+    .history-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .history-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e8eaed;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 8px;
+    }
+
+    .history-item-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+      color: #9aa0a6;
+      flex-shrink: 0;
+    }
+
+    .history-item-date {
+      color: #8ab4f8;
+    }
+
+    .history-item-count {
+      background: rgba(138, 180, 248, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #8ab4f8;
+    }
+
+    .history-item-preview {
+      font-size: 12px;
+      color: #9aa0a6;
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .history-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9aa0a6;
+    }
+
+    .history-empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .history-empty-text {
+      font-size: 14px;
+    }
+
+    /* History Detail View */
+    .history-detail-info {
+      background: rgba(41, 42, 45, 0.8);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+
+    .history-detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .history-detail-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .history-detail-label {
+      color: #9aa0a6;
+    }
+
+    .history-detail-value {
+      color: #e8eaed;
+      font-weight: 500;
+    }
+
+    .history-content {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      max-height: 250px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #bdc1c6;
+      margin-bottom: 15px;
+    }
+
+    .history-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .history-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .history-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    .btn-delete {
+      background: rgba(242, 139, 130, 0.2);
+      color: #f28b82;
+    }
+
+    .btn-delete:hover:not(:disabled) {
+      background: rgba(242, 139, 130, 0.3);
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>📝 CC Capturer</h1>
-    <div class="subtitle">Google Meet 자막 캡처</div>
-  </div>
-
-  <div id="alert" class="alert"></div>
-
-  <div class="status">
-    <div class="status-row">
-      <span class="label">상태</span>
-      <span class="value" id="status">대기 중</span>
+  <!-- Main View -->
+  <div id="main-view" class="view active">
+    <div class="header">
+      <h1>CC Capturer</h1>
+      <div class="subtitle">Google Meet 자막 캡처</div>
     </div>
-    <div class="status-row">
-      <span class="label">캡처된 자막</span>
-      <span class="value" id="count">0</span>
+
+    <!-- Quick Guide -->
+    <div class="guide-section">
+      <div class="guide-header" id="guide-header">
+        <span class="guide-title">Quick Guide</span>
+        <button class="guide-toggle" id="guide-toggle">-</button>
+      </div>
+      <div class="guide-content" id="guide-content">
+        <ol>
+          <li>Google Meet 회의에 참여</li>
+          <li>CC 버튼을 눌러 자막 활성화</li>
+          <li>자막이 자동으로 캡처됩니다</li>
+          <li>다운로드 또는 복사</li>
+        </ol>
+        <div class="shortcuts">
+          <div class="shortcuts-title">Shortcuts</div>
+          <div class="shortcut-item">
+            <kbd>Ctrl+Shift+D</kbd>
+            <span class="shortcut-label">다운로드</span>
+          </div>
+          <div class="shortcut-item">
+            <kbd>Ctrl+Shift+C</kbd>
+            <span class="shortcut-label">복사</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="alert" class="alert"></div>
+
+    <div class="status">
+      <div class="status-row">
+        <span class="label">상태</span>
+        <span class="value" id="status">대기 중</span>
+      </div>
+      <div class="status-row">
+        <span class="label">캡처된 자막</span>
+        <span class="value" id="count">0</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="start-btn" class="btn btn-start">캡처 시작</button>
+      <button id="stop-btn" class="btn btn-stop" disabled>캡처 중지</button>
+      <div class="btn-row">
+        <button id="download-txt" class="btn btn-download">TXT</button>
+        <button id="download-srt" class="btn btn-download">SRT</button>
+      </div>
+      <button id="history-btn" class="btn btn-history">회의 히스토리</button>
     </div>
   </div>
 
-  <div class="controls">
-    <button id="start-btn" class="btn btn-start">캡처 시작</button>
-    <button id="stop-btn" class="btn btn-stop" disabled>캡처 중지</button>
-    <button id="download-txt" class="btn btn-download">📄 TXT 다운로드</button>
-    <button id="download-srt" class="btn btn-download">🎬 SRT 다운로드</button>
+  <!-- History List View -->
+  <div id="history-view" class="view">
+    <div class="history-header">
+      <button class="btn-back" id="back-from-history">&larr;</button>
+      <span class="history-title">회의 히스토리</span>
+    </div>
+    <div class="history-list" id="history-list">
+      <!-- History items will be inserted here -->
+    </div>
   </div>
 
-  <div class="instructions">
-    <strong>사용 방법:</strong>
-    <ol>
-      <li>Google Meet 회의에 참여</li>
-      <li>CC 버튼을 눌러 자막 활성화</li>
-      <li>"캡처 시작" 버튼 클릭</li>
-      <li>회의 종료 후 "캡처 중지" 클릭</li>
-      <li>원하는 형식으로 다운로드</li>
-    </ol>
+  <!-- History Detail View -->
+  <div id="history-detail-view" class="view">
+    <div class="history-header">
+      <button class="btn-back" id="back-from-detail">&larr;</button>
+      <span class="history-title" id="detail-title">회의 상세</span>
+    </div>
+    <div class="history-detail-info">
+      <div class="history-detail-row">
+        <span class="history-detail-label">날짜</span>
+        <span class="history-detail-value" id="detail-date">-</span>
+      </div>
+      <div class="history-detail-row">
+        <span class="history-detail-label">시간</span>
+        <span class="history-detail-value" id="detail-time">-</span>
+      </div>
+      <div class="history-detail-row">
+        <span class="history-detail-label">자막 수</span>
+        <span class="history-detail-value" id="detail-count">-</span>
+      </div>
+    </div>
+    <div class="history-content" id="detail-content">
+      <!-- Caption content will be inserted here -->
+    </div>
+    <div class="controls">
+      <div class="btn-row">
+        <button id="detail-download-txt" class="btn btn-download">TXT 다운로드</button>
+        <button id="detail-download-srt" class="btn btn-download">SRT 다운로드</button>
+      </div>
+      <button id="detail-delete" class="btn btn-delete">삭제</button>
+    </div>
   </div>
 
   <script src="popup-simple.js"></script>

@@ -1109,11 +1109,13 @@ class SimpleCCCapturer {
     const placeholder = document.querySelector('.cc-placeholder');
     if (placeholder) placeholder.textContent = this.t('placeholder');
 
-    // Update language toggle button
+    // Update language toggle button - show target language (language to switch TO)
     const langToggle = document.getElementById('cc-lang-toggle');
     if (langToggle) {
-      langToggle.textContent = this.currentLanguage.toUpperCase();
-      langToggle.title = this.currentLanguage === 'en' ? 'Switch to Korean' : 'Switch to English';
+      // Show the language we can switch TO, not the current language
+      const targetLang = this.currentLanguage === 'en' ? 'KO' : 'EN';
+      langToggle.textContent = targetLang;
+      langToggle.title = this.currentLanguage === 'en' ? '한국어로 전환' : 'Switch to English';
     }
   }
 
@@ -2502,7 +2504,7 @@ async function createSimpleUI() {
     <div class="cc-header">
       <span class="cc-title">${capturer.t('title')}</span>
       <div class="cc-controls">
-        <button id="cc-lang-toggle" class="cc-btn cc-btn-icon" title="Switch language">${capturer.currentLanguage.toUpperCase()}</button>
+        <button id="cc-lang-toggle" class="cc-btn cc-btn-icon" title="${capturer.currentLanguage === 'en' ? '한국어로 전환' : 'Switch to English'}">${capturer.currentLanguage === 'en' ? 'KO' : 'EN'}</button>
         <button id="cc-settings-btn" class="cc-btn cc-btn-icon" title="${capturer.t('buttons.settings')}">&#9881;</button>
         <button id="cc-help-btn" class="cc-btn cc-btn-icon" title="${capturer.t('buttons.help')}">?</button>
         <button id="cc-minimize" class="cc-btn cc-btn-icon">&#8722;</button>
