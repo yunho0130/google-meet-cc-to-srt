@@ -1,220 +1,412 @@
-# Google Meet Transcriber
+# Google Meet CC Capturer
 
-A Chrome extension that automatically transcribes Google Meet meetings using OpenAI's Whisper API and generates AI-powered meeting notes.
+<div align="center">
 
-## Features
+![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
+![License](https://img.shields.io/badge/license-MIT-orange.svg)
 
-- **Automatic Transcription**: Captures audio from Google Meet sessions and transcribes in real-time using OpenAI Whisper
-- **AI Meeting Notes**: Generates comprehensive meeting notes including:
-  - Summary
-  - Key discussion points
-  - Action items with assignees
-  - Decisions made
-  - Follow-up items
-- **Email Integration**: One-click sharing of meeting notes via Gmail
-- **Multi-language Support**: Korean, English, Japanese, Chinese, Spanish, French, German
-- **Live Overlay**: View transcription in real-time during meetings
-- **Meeting History**: Store and review past meeting transcriptions
+**Capture and download Google Meet closed captions in real-time**
+*No API keys required • Simple & Fast • Privacy-focused*
 
-## Installation
+[Download Latest Release](#installation) • [Features](#features) • [Usage Guide](#usage) • [Documentation](CLAUDE.md)
 
-### From Source (Development)
+</div>
 
-1. Clone this repository:
+---
+
+## 🎯 Overview
+
+Google Meet CC Capturer is a lightweight Chrome extension that captures Google Meet's built-in closed captions and allows you to download them as TXT or SRT files. Unlike other solutions, it **requires no API keys** and works entirely offline with Google Meet's native captions.
+
+### Why CC Capturer?
+
+- ✅ **No API costs** - Uses Google Meet's free built-in captions
+- ✅ **Privacy-focused** - All data stays in your browser
+- ✅ **Simple & fast** - Just enable CC in Google Meet and start capturing
+- ✅ **Professional quality** - Smart deduplication and text processing
+- ✅ **Highly configurable** - Extensive settings for your workflow
+
+---
+
+## ✨ Features
+
+### Core Functionality
+- 📝 **Real-time caption capture** from Google Meet
+- 🎯 **Auto-start** when captions are detected
+- 👁️ **Live preview** of pending captions
+- 💾 **Download as TXT or SRT** with preview
+- 🎤 **Speaker name detection** (optional)
+- 🔄 **Smart deduplication** to prevent repeated text
+- 📊 **Real-time statistics** (caption count, word count, duration)
+
+### v3.0.0 New Features
+- ⚙️ **Settings panel** for complete customization
+- ⌨️ **Keyboard shortcuts** for all major actions
+- 🔔 **Toast notifications** for user feedback
+- 📥 **Download preview** with file statistics
+- 📖 **Help guide** with quick start and shortcuts
+- 💾 **Memory management** for long meetings
+- 🎨 **Modern UI** with enhanced UX
+
+### Technical Highlights
+- 🧠 Smart debouncing (1.5s configurable)
+- 🔍 Priority-based selector detection
+- 💪 Circular buffer (prevents memory leaks)
+- 📈 Performance monitoring
+- 🛡️ Comprehensive error handling
+- 🎯 Tab visibility handling (works during screen sharing)
+
+---
+
+## 📦 Installation
+
+### Method 1: Install from Release (Recommended)
+
+1. **Download the latest release**
+   - Go to [Releases](https://github.com/yunho0130/google-meet-cc-to-srt/releases)
+   - Download `google-meet-cc-capturer-v3.0.0.zip`
+
+2. **Extract the ZIP file**
    ```bash
-   git clone https://github.com/your-repo/google-meet-transcriber.git
-   cd google-meet-transcriber
+   unzip google-meet-cc-capturer-v3.0.0.zip
    ```
 
-2. Generate icons (optional - placeholders are included):
-   ```bash
-   # Option 1: Using Node.js
-   npm install
-   npm run generate-icons
+3. **Load in Chrome**
+   - Open Chrome and go to `chrome://extensions/`
+   - Enable **Developer mode** (toggle in top right corner)
+   - Click **Load unpacked**
+   - Select the extracted folder
 
-   # Option 2: Using browser
-   # Open scripts/generate-icons.html in a browser and save the icons
-   ```
+4. **Verify installation**
+   - You should see the extension icon (mint green) in your toolbar
+   - Extension name: "Google Meet CC Capturer"
+   - Version: 3.0.0
 
-3. Load the extension in Chrome:
-   - Open `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top right)
-   - Click "Load unpacked"
-   - Select the project folder
+### Method 2: Install from Source
 
-4. Configure your OpenAI API key:
-   - Click the extension icon in Chrome toolbar
-   - Enter your OpenAI API key
-   - Click "Save Key"
+```bash
+# Clone the repository
+git clone https://github.com/yunho0130/google-meet-cc-to-srt.git
+cd google-meet-cc-to-srt
 
-## Usage
+# Load in Chrome (same as Method 1, step 3)
+```
 
-### Starting Transcription
+---
 
-1. Join a Google Meet meeting
-2. The extension will automatically detect the meeting
-3. If auto-transcription is enabled, recording starts automatically
-4. Otherwise, click the extension icon and press "Start Recording"
+## 🚀 Usage
 
-### Viewing Transcription
+### Quick Start (3 steps)
 
-- **During meeting**: View live transcription in the overlay panel
-- **After meeting**: Click the extension icon and select a meeting from history
+1. **Join a Google Meet meeting**
+2. **Enable CC (closed captions)** by clicking the CC button in Google Meet
+3. **Watch it capture automatically!** The extension detects CC and starts capturing
 
-### Generating Meeting Notes
-
-1. Open a completed meeting from the history
-2. Switch to the "Meeting Notes" tab
-3. Click "Generate Notes with AI"
-4. Edit the generated notes as needed
-5. Click "Save Changes"
-
-### Sending Email
-
-1. Generate or view meeting notes
-2. Click "Send Email"
-3. Gmail will open with pre-filled:
-   - Subject line
-   - Formatted meeting notes
-   - Recipients (if email addresses were detected)
-
-## Configuration
-
-### Settings
-
-Access settings through the extension popup or side panel:
-
-- **Auto-transcribe**: Automatically start transcription when joining a meeting
-- **Show overlay**: Display live transcription during meetings
-- **Language**: Primary language for transcription
-- **Whisper Model**: OpenAI Whisper model to use
-- **GPT Model**: Model for generating meeting notes
-
-### Supported Languages
-
-- Korean (ko)
-- English (en)
-- Japanese (ja)
-- Chinese (zh)
-- Spanish (es)
-- French (fr)
-- German (de)
-
-## Architecture
+### Interface Overview
 
 ```
-google-meet-transcriber/
-├── manifest.json          # Extension manifest (MV3)
-├── background/
-│   └── service-worker.js  # Background service worker
+┌─────────────────────────────────────────┐
+│ CC Capture         [Start] [Stop] [Settings] [Help] │
+├─────────────────────────────────────────┤
+│ Status: Recording...  📝 5  💬 124  ⏱️ 00:42 │
+├─────────────────────────────────────────┤
+│ Current: This is being captured...      │
+├─────────────────────────────────────────┤
+│ [00:00:12] First completed caption      │
+│ [00:00:28] Second completed caption     │
+│ [00:00:35] Third completed caption      │
+└─────────────────────────────────────────┘
+```
+
+### Download Captions
+
+1. **Click TXT or SRT button** (or press `Ctrl+Shift+D`)
+2. **Preview your captions** in the download modal
+   - See statistics (count, words, duration, file size)
+   - Choose format (TXT/SRT)
+   - Edit filename
+   - Toggle timestamps (TXT only)
+3. **Click Download** to save
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+S` | Start/Stop capture |
+| `Ctrl+Shift+D` | Download captions |
+| `Ctrl+Shift+H` | Show help modal |
+| `Esc` | Close modals |
+
+---
+
+## ⚙️ Settings
+
+Access settings by clicking the **⚙️** button in the extension panel.
+
+### Capture Settings
+- **Debounce Delay** (500-3000ms, default: 1500ms)
+  How long to wait for text to stabilize before capturing
+- **Auto-start capture** (default: ON)
+  Automatically start when CC is detected
+- **Include speaker names** (default: ON)
+  Add speaker names to captions
+- **Show pending text** (default: ON)
+  Display real-time preview
+
+### Performance Settings
+- **Max captions in memory** (500/1000/2000/5000, default: 1000)
+  Older captions are archived when limit reached
+
+### Download Settings
+- **Default format** (TXT/SRT, default: TXT)
+- **Include timestamps** (default: ON)
+  Add timestamps to TXT downloads
+
+---
+
+## 📖 Help & Tips
+
+### Best Practices
+1. **Enable CC early** - Start CC before the meeting begins for best results
+2. **Check pending text** - The "Current:" area shows what's being captured in real-time
+3. **Wait for text to stabilize** - Text appears after 1.5s (configurable) to prevent duplicates
+4. **Use keyboard shortcuts** - Much faster than clicking buttons
+5. **Preview before download** - Check your captions before saving
+
+### Common Scenarios
+
+#### Long Meetings
+- Extension automatically manages memory
+- Older captions are archived (still included in downloads)
+- No performance degradation
+
+#### Screen Sharing
+- Capture continues even when you switch tabs
+- Works perfectly during presentations
+
+#### Multiple Languages
+- Supports any language Google Meet supports
+- Korean, English, Japanese, etc.
+
+---
+
+## 🔧 Troubleshooting
+
+### Captions not detected
+
+**Problem**: "Waiting for CC..." message persists
+
+**Solutions**:
+1. Click the **CC button** in Google Meet (bottom controls)
+2. If CC is enabled, try clicking "Start" manually
+3. Refresh the page (`F5`)
+4. Check console for errors (`F12`)
+
+### UI text appearing in captions
+
+**Problem**: Seeing "arrow_downward", "하단으로 이동" etc.
+
+**Solution**: This was fixed in v3.0.0. If still occurring:
+1. Refresh the extension (`chrome://extensions/` → Reload)
+2. Report the specific text pattern as an issue
+
+### Duplicate captions
+
+**Problem**: Same caption appearing multiple times
+
+**Solutions**:
+1. Check Settings → Debounce Delay (increase if needed)
+2. This should be rare in v3.0.0 due to smart deduplication
+
+### Download not working
+
+**Problem**: Click download but nothing happens
+
+**Solutions**:
+1. Check if you have any captions captured (count > 0)
+2. Try the preview modal (`Ctrl+Shift+D`) instead
+3. Check browser console for errors
+
+### Feature_flags error in console
+
+**Problem**: Console shows "Cannot read properties of undefined (reading 'feature_flags')"
+
+**Note**: This is a Google Meet internal error, not from our extension. It's harmless and doesn't affect functionality. It was minimized in v3.0.0 through defensive coding.
+
+---
+
+## 🏗️ Architecture
+
+```
+google-meet-cc-capturer/
+├── manifest.json              # Chrome Extension Manifest V3
 ├── content/
-│   ├── meet-content.js    # Content script for Google Meet
-│   └── meet-content.css   # Overlay styles
+│   ├── meet-cc-simple.js      # Main caption capturing logic (90KB)
+│   └── meet-cc-simple.css     # UI styles
 ├── popup/
-│   ├── popup.html         # Extension popup UI
-│   ├── popup.css
-│   └── popup.js
-├── sidepanel/
-│   ├── sidepanel.html     # Full panel UI
-│   ├── sidepanel.css
-│   └── sidepanel.js
-├── offscreen/
-│   ├── offscreen.html     # Offscreen document for audio
-│   └── offscreen.js
-├── utils/
-│   ├── storage.js         # Storage utilities
-│   ├── openai-api.js      # OpenAI API integration
-│   └── message-types.js   # Message type definitions
-└── assets/
-    └── icons/             # Extension icons
+│   ├── popup-simple.html      # Extension popup
+│   └── popup-simple.js
+├── assets/
+│   ├── icons/                 # Extension icons (16, 32, 48, 128px)
+│   └── appicon-darkmode_transparent.png
+├── scripts/
+│   └── generate-icons.js      # Icon generation utility
+├── switch-to-simple.sh        # Switch to CC version
+├── switch-to-api.sh           # Switch to API version (legacy)
+└── CLAUDE.md                  # Complete version history
 ```
 
-## API Requirements
+### Key Classes
 
-This extension requires an OpenAI API key with access to:
+- **CCConfig** - Configuration management with Chrome storage
+- **CCNotification** - Toast notification system
+- **CaptionBuffer** - Memory management with circular buffering
+- **SelectorManager** - Reliable caption element detection
+- **PerformanceMonitor** - Metrics tracking and optimization
+- **SimpleCCCapturer** - Main orchestration class
 
-- **Whisper API** (`whisper-1`): For speech-to-text transcription
-- **Chat API** (`gpt-4o-mini` or `gpt-4o`): For generating meeting notes
+---
 
-Get your API key at: https://platform.openai.com/api-keys
+## 🔐 Privacy & Security
 
-## Permissions
+### What data is collected?
+**Nothing.** This extension:
+- ✅ Runs entirely in your browser
+- ✅ No external servers or tracking
+- ✅ No analytics or telemetry
+- ✅ No API calls (except to Google Meet's own pages)
 
-The extension requires the following permissions:
+### What data is stored?
+- ⚙️ Your settings (in Chrome sync storage)
+- 📝 Captured captions (in Chrome local storage)
+- 💾 Everything stays in your browser
 
-- `storage`: Store API key and meeting data
-- `activeTab`: Access current tab for meeting detection
-- `scripting`: Inject content scripts
-- `tabCapture`: Capture audio from Google Meet tab
-- `offscreen`: Process audio in offscreen document
-- `tabs`: Tab management
-- `alarms`: Keep service worker alive during transcription
-- `identity`: OAuth support (future feature)
+### Permissions explained
+- **storage** - Save your settings and captions
+- **activeTab** - Access the Google Meet tab to capture captions
+- **host_permissions (meet.google.com)** - Required to run on Google Meet pages
 
-Host permissions:
-- `meet.google.com`: Detect and interact with Google Meet
-- `api.openai.com`: Call OpenAI APIs
-- `mail.google.com`: Open Gmail compose
+That's it! No microphone, no camera, no tracking.
 
-## Privacy & Security
+---
 
-- **Local Storage**: All meeting data is stored locally in your browser
-- **API Key Security**: Your OpenAI API key is obfuscated before storage
-- **No External Servers**: Data is sent only to OpenAI's API
-- **No Tracking**: No analytics or tracking is included
+## 📊 Version History
 
-## Troubleshooting
+### v3.0.0 (2024-12-17) - Major Rebuild 🎉
 
-### Transcription not starting
+**Complete overhaul** with focus on usability and reliability.
 
-1. Ensure your API key is configured correctly
-2. Check if you're on a Google Meet page
-3. Try refreshing the meeting page
-4. Check the browser console for errors
+**What's New:**
+- Configuration system with persistent settings
+- Toast notifications for all actions
+- Memory management for long meetings
+- Enhanced UI with modals and statistics
+- Download preview with file info
+- Keyboard shortcuts
+- Help guide
+- Much more!
 
-### Audio not capturing
+See [CLAUDE.md](CLAUDE.md) for complete version history.
 
-1. Ensure the extension has permission to access the tab
-2. Try disabling other extensions that might interfere
-3. Refresh the meeting page
+### Previous Versions
+- v2.4.0 - Real-time preview & tab visibility
+- v2.3.0 - Debouncing for duplicate prevention
+- v2.2.0 - Accurate selectors from real HTML
+- v2.1.0 - Console error fixes
+- v2.0.0 - Initial CC Capturer version
+- v1.x - API-based transcription (deprecated)
 
-### Notes generation fails
+---
 
-1. Ensure there's a transcript available
-2. Check your API key has access to GPT models
-3. Try with a shorter transcript first
-
-## Development
+## 🛠️ Development
 
 ### Prerequisites
-
-- Node.js 18+
+- Node.js 18+ (for icon generation)
 - Chrome browser
 
 ### Setup
-
 ```bash
+# Clone repository
+git clone https://github.com/yunho0130/google-meet-cc-to-srt.git
+cd google-meet-cc-to-srt
+
+# Install dependencies (optional, for icon generation)
 npm install
-```
 
-### Generate Icons
-
-```bash
+# Generate icons (if needed)
 npm run generate-icons
 ```
 
-Or open `scripts/generate-icons.html` in a browser.
+### Load in Chrome
+1. `chrome://extensions/`
+2. Enable Developer mode
+3. Load unpacked → select project folder
 
-### Package for Distribution
-
+### Create Release Package
 ```bash
-npm run package
+# Create a zip file for distribution
+zip -r google-meet-cc-capturer-v3.0.0.zip \
+  manifest.json \
+  content/ \
+  popup/ \
+  assets/ \
+  -x "*.DS_Store" "*.git*"
 ```
 
-## License
+---
 
-MIT License - See LICENSE file for details.
+## 🤝 Contributing
 
-## Contributing
+Contributions are welcome! Here's how:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Reporting Issues
+
+Found a bug or have a suggestion?
+- Open an issue on [GitHub Issues](https://github.com/yunho0130/google-meet-cc-to-srt/issues)
+- Include:
+  - Chrome version
+  - Extension version
+  - Steps to reproduce
+  - Console errors (if any)
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Built with ❤️ using [Claude Code](https://claude.com/claude-code)
+- Icons designed with modern mint theme
+- Inspired by the need for simple, privacy-focused meeting tools
+
+---
+
+## 📞 Support
+
+- **Documentation**: [CLAUDE.md](CLAUDE.md)
+- **Issues**: [GitHub Issues](https://github.com/yunho0130/google-meet-cc-to-srt/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yunho0130/google-meet-cc-to-srt/discussions)
+
+---
+
+<div align="center">
+
+**Made with Claude Code**
+v3.0.0 • 2024-12-17
+
+[⬆ Back to top](#google-meet-cc-capturer)
+
+</div>
