@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CC Capturer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 350px;
+      padding: 20px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #202124;
+      color: #e8eaed;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #9aa0a6;
+    }
+
+    .status {
+      background: rgba(41, 42, 45, 0.8);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .status-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .label {
+      font-size: 12px;
+      color: #9aa0a6;
+    }
+
+    .value {
+      font-size: 14px;
+      font-weight: 500;
+      color: #8ab4f8;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-start {
+      background: #81c995;
+      color: #202124;
+    }
+
+    .btn-start:hover:not(:disabled) {
+      background: #91d9a5;
+    }
+
+    .btn-stop {
+      background: #f28b82;
+      color: #202124;
+    }
+
+    .btn-stop:hover:not(:disabled) {
+      background: #ff9b92;
+    }
+
+    .btn-download {
+      background: #8ab4f8;
+      color: #202124;
+    }
+
+    .btn-download:hover:not(:disabled) {
+      background: #9ac4ff;
+    }
+
+    .btn-secondary {
+      background: rgba(138, 180, 248, 0.2);
+      color: #8ab4f8;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(138, 180, 248, 0.3);
+    }
+
+    .instructions {
+      margin-top: 20px;
+      padding: 12px;
+      background: rgba(138, 180, 248, 0.1);
+      border-radius: 8px;
+      font-size: 12px;
+      color: #9aa0a6;
+      line-height: 1.5;
+    }
+
+    .instructions strong {
+      color: #8ab4f8;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      margin-top: 5px;
+    }
+
+    .instructions li {
+      margin-bottom: 3px;
+    }
+
+    .alert {
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 15px;
+      display: none;
+    }
+
+    .alert-error {
+      background: rgba(242, 139, 130, 0.2);
+      color: #f28b82;
+      border: 1px solid rgba(242, 139, 130, 0.3);
+    }
+
+    .alert-success {
+      background: rgba(129, 201, 149, 0.2);
+      color: #81c995;
+      border: 1px solid rgba(129, 201, 149, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📝 CC Capturer</h1>
+    <div class="subtitle">Google Meet 자막 캡처</div>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <div class="status">
+    <div class="status-row">
+      <span class="label">상태</span>
+      <span class="value" id="status">대기 중</span>
+    </div>
+    <div class="status-row">
+      <span class="label">캡처된 자막</span>
+      <span class="value" id="count">0</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="start-btn" class="btn btn-start">캡처 시작</button>
+    <button id="stop-btn" class="btn btn-stop" disabled>캡처 중지</button>
+    <button id="download-txt" class="btn btn-download">📄 TXT 다운로드</button>
+    <button id="download-srt" class="btn btn-download">🎬 SRT 다운로드</button>
+  </div>
+
+  <div class="instructions">
+    <strong>사용 방법:</strong>
+    <ol>
+      <li>Google Meet 회의에 참여</li>
+      <li>CC 버튼을 눌러 자막 활성화</li>
+      <li>"캡처 시작" 버튼 클릭</li>
+      <li>회의 종료 후 "캡처 중지" 클릭</li>
+      <li>원하는 형식으로 다운로드</li>
+    </ol>
+  </div>
+
+  <script src="popup-simple.js"></script>
+</body>
+</html>

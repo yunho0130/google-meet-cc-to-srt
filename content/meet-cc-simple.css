@@ -1,0 +1,761 @@
+/**
+ * Simple CC Capturer Styles
+ * Version 3.0.0 - Phase 4: Enhanced Download Features
+ *
+ * Includes:
+ * - Base overlay and control styles
+ * - Toast notification system
+ * - Modal system (download preview, settings, statistics)
+ * - Form controls (select, input, checkbox, range)
+ * - Download preview specific styles
+ */
+
+#cc-overlay {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 400px;
+  max-height: 500px;
+  background: rgba(32, 33, 36, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  color: #e8eaed;
+  font-family: 'Google Sans', 'Segoe UI', Arial, sans-serif;
+  font-size: 14px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(10px);
+}
+
+.cc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(50, 51, 54, 0.8);
+  border-radius: 12px 12px 0 0;
+}
+
+.cc-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cc-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.cc-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(138, 180, 248, 0.2);
+  color: #8ab4f8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.cc-btn:hover:not(:disabled) {
+  background: rgba(138, 180, 248, 0.3);
+}
+
+.cc-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cc-btn-start {
+  background: rgba(129, 201, 149, 0.2);
+  color: #81c995;
+}
+
+.cc-btn-start:hover:not(:disabled) {
+  background: rgba(129, 201, 149, 0.3);
+}
+
+.cc-btn-stop {
+  background: rgba(242, 139, 130, 0.2);
+  color: #f28b82;
+}
+
+.cc-btn-stop:hover:not(:disabled) {
+  background: rgba(242, 139, 130, 0.3);
+}
+
+.cc-btn-debug {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  padding: 6px 8px;
+  font-weight: bold;
+}
+
+.cc-btn-debug:hover:not(:disabled) {
+  background: rgba(255, 193, 7, 0.3);
+}
+
+.cc-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #9aa0a6;
+  background: rgba(41, 42, 45, 0.6);
+}
+
+#cc-status-text {
+  color: #8ab4f8;
+  font-weight: 500;
+}
+
+.cc-panel {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Pending text area - shows real-time caption during debounce */
+.cc-pending {
+  padding: 10px 16px;
+  background: rgba(66, 133, 244, 0.15);
+  border-bottom: 1px solid rgba(66, 133, 244, 0.3);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 40px;
+}
+
+.cc-pending-label {
+  color: #4285f4;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.cc-pending-text {
+  color: #bdc1c6;
+  font-size: 13px;
+  font-style: italic;
+  flex: 1;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Pulse animation for pending indicator */
+@keyframes pendingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.cc-pending-label {
+  animation: pendingPulse 1.5s ease-in-out infinite;
+}
+
+.cc-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  max-height: 350px;
+}
+
+.cc-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cc-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cc-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.cc-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.cc-line {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  background: rgba(50, 51, 54, 0.5);
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.cc-time {
+  color: #8ab4f8;
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  margin-right: 8px;
+}
+
+.cc-text {
+  color: #e8eaed;
+}
+
+.cc-placeholder {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9aa0a6;
+  font-size: 13px;
+}
+
+/* Animation for new captions */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cc-line {
+  animation: slideIn 0.2s ease-out;
+}
+
+/* =============================================================================
+   Notification System Styles (Phase 1: Core Architecture)
+   ============================================================================= */
+
+/* Notification Container */
+.cc-notifications {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10003;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* Individual Notification */
+.cc-notification {
+  background: rgba(32, 33, 36, 0.95);
+  color: #e8eaed;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 250px;
+  max-width: 400px;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all 0.3s ease;
+  pointer-events: all;
+  backdrop-filter: blur(10px);
+  font-family: 'Google Sans', 'Segoe UI', Arial, sans-serif;
+}
+
+.cc-notification.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.cc-notification-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.cc-notification-message {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Notification Types */
+.cc-notification-success {
+  border-left: 4px solid #81c995;
+}
+
+.cc-notification-success .cc-notification-icon {
+  background: rgba(129, 201, 149, 0.2);
+  color: #81c995;
+}
+
+.cc-notification-error {
+  border-left: 4px solid #f28b82;
+}
+
+.cc-notification-error .cc-notification-icon {
+  background: rgba(242, 139, 130, 0.2);
+  color: #f28b82;
+}
+
+.cc-notification-warning {
+  border-left: 4px solid #ffc107;
+}
+
+.cc-notification-warning .cc-notification-icon {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.cc-notification-info {
+  border-left: 4px solid #8ab4f8;
+}
+
+.cc-notification-info .cc-notification-icon {
+  background: rgba(138, 180, 248, 0.2);
+  color: #8ab4f8;
+}
+
+/* Notification slide-out animation */
+@keyframes notificationSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes notificationSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* =============================================================================
+   Modal System Styles (Phase 4: Download Preview)
+   ============================================================================= */
+
+/* Modal Overlay */
+.cc-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10004;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Google Sans', 'Segoe UI', Arial, sans-serif;
+}
+
+.cc-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.cc-modal-content {
+  position: relative;
+  background: rgba(32, 33, 36, 0.98);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  color: #e8eaed;
+  width: 90%;
+  max-width: 450px;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.25s ease-out;
+}
+
+.cc-modal-large {
+  max-width: 550px;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(50, 51, 54, 0.8);
+}
+
+.cc-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e8eaed;
+}
+
+.cc-modal-close {
+  background: none;
+  border: none;
+  color: #9aa0a6;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.cc-modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8eaed;
+}
+
+.cc-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cc-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(50, 51, 54, 0.5);
+}
+
+/* Modal Buttons */
+.cc-btn-primary {
+  background: rgba(138, 180, 248, 0.9);
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.cc-btn-primary:hover:not(:disabled) {
+  background: #8ab4f8;
+}
+
+.cc-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8eaed;
+}
+
+.cc-btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* =============================================================================
+   Download Modal Specific Styles
+   ============================================================================= */
+
+.cc-download-info {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: rgba(50, 51, 54, 0.5);
+  border-radius: 8px;
+}
+
+.cc-download-stat {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cc-download-stat strong {
+  color: #8ab4f8;
+}
+
+.cc-download-stat span {
+  color: #e8eaed;
+}
+
+.cc-download-options {
+  margin-bottom: 20px;
+}
+
+/* Form Setting Row */
+.cc-setting {
+  margin-bottom: 16px;
+}
+
+.cc-setting:last-child {
+  margin-bottom: 0;
+}
+
+.cc-setting > label {
+  display: block;
+  font-size: 13px;
+  color: #9aa0a6;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.cc-setting select,
+.cc-setting input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(50, 51, 54, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #e8eaed;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cc-setting select:focus,
+.cc-setting input[type="text"]:focus {
+  outline: none;
+  border-color: #8ab4f8;
+  box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.2);
+}
+
+.cc-setting select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239aa0a6' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.cc-setting select option {
+  background: #32333c;
+  color: #e8eaed;
+}
+
+/* Checkbox Setting */
+.cc-setting label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0;
+  color: #e8eaed;
+}
+
+.cc-setting input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #8ab4f8;
+  cursor: pointer;
+}
+
+/* Download Preview Section */
+.cc-download-preview {
+  margin-top: 20px;
+}
+
+.cc-download-preview h4 {
+  margin: 0 0 12px 0;
+  color: #e8eaed;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cc-preview-container {
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cc-preview-container pre {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #bdc1c6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.cc-preview-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cc-preview-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cc-preview-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.cc-preview-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Empty State */
+.cc-download-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9aa0a6;
+}
+
+.cc-download-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* =============================================================================
+   Settings Modal Styles
+   ============================================================================= */
+
+.cc-settings-section {
+  margin-bottom: 24px;
+}
+
+.cc-settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.cc-settings-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8ab4f8;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(138, 180, 248, 0.2);
+}
+
+/* Range Input */
+.cc-setting input[type="range"] {
+  width: 100%;
+  height: 6px;
+  background: rgba(50, 51, 54, 0.8);
+  border-radius: 3px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.cc-setting input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #8ab4f8;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.cc-setting input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.cc-range-value {
+  display: inline-block;
+  min-width: 60px;
+  text-align: right;
+  color: #8ab4f8;
+  font-weight: 500;
+}
+
+/* Settings Row with Range */
+.cc-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cc-setting-row input[type="range"] {
+  flex: 1;
+}
+
+/* =============================================================================
+   Statistics Modal Styles
+   ============================================================================= */
+
+.cc-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.cc-stat-card {
+  background: rgba(50, 51, 54, 0.5);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.cc-stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #8ab4f8;
+  margin-bottom: 4px;
+}
+
+.cc-stat-label {
+  font-size: 12px;
+  color: #9aa0a6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cc-stats-details {
+  background: rgba(50, 51, 54, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.cc-stats-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cc-stats-row:last-child {
+  border-bottom: none;
+}
+
+.cc-stats-row-label {
+  color: #9aa0a6;
+}
+
+.cc-stats-row-value {
+  color: #e8eaed;
+  font-weight: 500;
+}
