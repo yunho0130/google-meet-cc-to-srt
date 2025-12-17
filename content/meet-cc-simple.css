@@ -1,21 +1,28 @@
 /**
  * Simple CC Capturer Styles
- * Version 3.0.0 - Phase 4: Enhanced Download Features
+ * Version 3.1.0 - Major UX Improvements
  *
  * Includes:
- * - Base overlay and control styles
+ * - New UI layout with usage guide, status bar, statistics
+ * - Removed start/stop buttons (auto-capture mode)
+ * - Copy button styling
+ * - Language toggle button
+ * - Collapsible guide section
+ * - Recording status indicator with animation
  * - Toast notification system
- * - Modal system (download preview, settings, statistics)
+ * - Modal system (download preview, settings, help)
  * - Form controls (select, input, checkbox, range)
- * - Download preview specific styles
  */
 
+/* =============================================================================
+   Main Overlay Container
+   ============================================================================= */
 #cc-overlay {
   position: fixed;
   bottom: 20px;
   right: 20px;
   width: 400px;
-  max-height: 500px;
+  max-height: 600px;
   background: rgba(32, 33, 36, 0.95);
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -26,8 +33,12 @@
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(10px);
+  overflow: hidden;
 }
 
+/* =============================================================================
+   Header Section
+   ============================================================================= */
 .cc-header {
   display: flex;
   align-items: center;
@@ -36,6 +47,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(50, 51, 54, 0.8);
   border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
 }
 
 .cc-title {
@@ -48,6 +60,9 @@
   gap: 6px;
 }
 
+/* =============================================================================
+   Button Styles
+   ============================================================================= */
 .cc-btn {
   padding: 6px 12px;
   border: none;
@@ -58,6 +73,10 @@
   font-size: 12px;
   font-weight: 500;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .cc-btn:hover:not(:disabled) {
@@ -69,58 +88,196 @@
   cursor: not-allowed;
 }
 
-.cc-btn-start {
-  background: rgba(129, 201, 149, 0.2);
-  color: #81c995;
+.cc-btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 14px;
+  border-radius: 50%;
 }
 
-.cc-btn-start:hover:not(:disabled) {
-  background: rgba(129, 201, 149, 0.3);
+.cc-btn-icon:hover:not(:disabled) {
+  background: rgba(138, 180, 248, 0.3);
 }
 
-.cc-btn-stop {
-  background: rgba(242, 139, 130, 0.2);
-  color: #f28b82;
+.cc-btn-primary {
+  background: rgba(138, 180, 248, 0.9);
+  color: #1a1a1a;
+  font-weight: 600;
 }
 
-.cc-btn-stop:hover:not(:disabled) {
-  background: rgba(242, 139, 130, 0.3);
+.cc-btn-primary:hover:not(:disabled) {
+  background: #8ab4f8;
 }
 
-.cc-btn-debug {
-  background: rgba(255, 193, 7, 0.2);
-  color: #ffc107;
-  padding: 6px 8px;
-  font-weight: bold;
+.cc-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8eaed;
 }
 
-.cc-btn-debug:hover:not(:disabled) {
-  background: rgba(255, 193, 7, 0.3);
+.cc-btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
 }
 
-.cc-status {
+.cc-btn-icon-emoji {
+  font-size: 14px;
+}
+
+/* =============================================================================
+   Usage Guide Section
+   ============================================================================= */
+.cc-guide {
+  background: rgba(66, 133, 244, 0.1);
+  border-bottom: 1px solid rgba(66, 133, 244, 0.2);
+  flex-shrink: 0;
+}
+
+.cc-guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8ab4f8;
+}
+
+.cc-btn-collapse {
+  background: none;
+  border: none;
+  color: #8ab4f8;
+  font-size: 16px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.cc-btn-collapse:hover {
+  background: rgba(138, 180, 248, 0.2);
+}
+
+.cc-guide-content {
+  padding: 0 16px 12px;
+}
+
+.cc-guide-content ol {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #bdc1c6;
+  line-height: 1.8;
+}
+
+.cc-guide-content ol li {
+  margin-bottom: 2px;
+}
+
+.cc-shortcuts {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cc-shortcuts-title {
+  font-size: 11px;
+  color: #9aa0a6;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cc-shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.cc-shortcut-item kbd {
+  background: rgba(50, 51, 54, 0.8);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: #e8eaed;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cc-shortcut-label {
+  font-size: 12px;
+  color: #9aa0a6;
+}
+
+/* =============================================================================
+   Status Bar Section
+   ============================================================================= */
+.cc-status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  font-size: 12px;
-  color: #9aa0a6;
   background: rgba(41, 42, 45, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.cc-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aa0a6;
+  transition: background 0.3s;
+}
+
+.cc-status-dot.recording {
+  background: #81c995;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
 }
 
 #cc-status-text {
+  font-size: 12px;
   color: #8ab4f8;
   font-weight: 500;
 }
 
-.cc-panel {
-  flex: 1;
-  overflow: hidden;
+.cc-stats {
   display: flex;
-  flex-direction: column;
+  gap: 12px;
+  font-size: 11px;
+  color: #9aa0a6;
 }
 
-/* Pending text area - shows real-time caption during debounce */
+.cc-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* =============================================================================
+   Pending Text Area
+   ============================================================================= */
 .cc-pending {
   padding: 10px 16px;
   background: rgba(66, 133, 244, 0.15);
@@ -129,6 +286,7 @@
   gap: 10px;
   align-items: flex-start;
   min-height: 40px;
+  flex-shrink: 0;
 }
 
 .cc-pending-label {
@@ -137,6 +295,12 @@
   font-weight: 600;
   white-space: nowrap;
   padding-top: 2px;
+  animation: pendingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pendingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .cc-pending-text {
@@ -149,21 +313,22 @@
   overflow-wrap: break-word;
 }
 
-/* Pulse animation for pending indicator */
-@keyframes pendingPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.cc-pending-label {
-  animation: pendingPulse 1.5s ease-in-out infinite;
+/* =============================================================================
+   Transcript Panel
+   ============================================================================= */
+.cc-panel {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
 }
 
 .cc-content {
   flex: 1;
   overflow-y: auto;
   padding: 12px 16px;
-  max-height: 350px;
+  max-height: 250px;
 }
 
 .cc-content::-webkit-scrollbar {
@@ -189,6 +354,18 @@
   background: rgba(50, 51, 54, 0.5);
   border-radius: 6px;
   line-height: 1.5;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .cc-time {
@@ -209,27 +386,26 @@
   font-size: 13px;
 }
 
-/* Animation for new captions */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* =============================================================================
+   Action Buttons Section
+   ============================================================================= */
+.cc-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(50, 51, 54, 0.5);
+  flex-shrink: 0;
 }
 
-.cc-line {
-  animation: slideIn 0.2s ease-out;
+.cc-actions .cc-btn {
+  flex: 1;
+  justify-content: center;
 }
 
 /* =============================================================================
-   Notification System Styles (Phase 1: Core Architecture)
+   Notification System Styles
    ============================================================================= */
-
-/* Notification Container */
 .cc-notifications {
   position: fixed;
   top: 20px;
@@ -241,7 +417,6 @@
   pointer-events: none;
 }
 
-/* Individual Notification */
 .cc-notification {
   background: rgba(32, 33, 36, 0.95);
   color: #e8eaed;
@@ -321,34 +496,9 @@
   color: #8ab4f8;
 }
 
-/* Notification slide-out animation */
-@keyframes notificationSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes notificationSlideOut {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-}
-
 /* =============================================================================
-   Modal System Styles (Phase 4: Download Preview)
+   Modal System Styles
    ============================================================================= */
-
-/* Modal Overlay */
 .cc-modal {
   position: fixed;
   top: 0;
@@ -454,30 +604,9 @@
   background: rgba(50, 51, 54, 0.5);
 }
 
-/* Modal Buttons */
-.cc-btn-primary {
-  background: rgba(138, 180, 248, 0.9);
-  color: #1a1a1a;
-  font-weight: 600;
-}
-
-.cc-btn-primary:hover:not(:disabled) {
-  background: #8ab4f8;
-}
-
-.cc-btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e8eaed;
-}
-
-.cc-btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-}
-
 /* =============================================================================
-   Download Modal Specific Styles
+   Download Modal Styles
    ============================================================================= */
-
 .cc-download-info {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -507,7 +636,9 @@
   margin-bottom: 20px;
 }
 
-/* Form Setting Row */
+/* =============================================================================
+   Form Controls
+   ============================================================================= */
 .cc-setting {
   margin-bottom: 16px;
 }
@@ -535,6 +666,7 @@
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 
 .cc-setting select:focus,
@@ -576,7 +708,51 @@
   cursor: pointer;
 }
 
-/* Download Preview Section */
+/* Range Input */
+.cc-setting input[type="range"] {
+  width: 100%;
+  height: 6px;
+  background: rgba(50, 51, 54, 0.8);
+  border-radius: 3px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.cc-setting input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #8ab4f8;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.cc-setting input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.cc-range-value {
+  display: inline-block;
+  min-width: 60px;
+  text-align: right;
+  color: #8ab4f8;
+  font-weight: 500;
+}
+
+.cc-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cc-setting-row input[type="range"] {
+  flex: 1;
+}
+
+/* =============================================================================
+   Download Preview Section
+   ============================================================================= */
 .cc-download-preview {
   margin-top: 20px;
 }
@@ -624,23 +800,9 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Empty State */
-.cc-download-empty {
-  text-align: center;
-  padding: 40px 20px;
-  color: #9aa0a6;
-}
-
-.cc-download-empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
 /* =============================================================================
    Settings Modal Styles
    ============================================================================= */
-
 .cc-settings-section {
   margin-bottom: 24px;
 }
@@ -658,53 +820,81 @@
   border-bottom: 1px solid rgba(138, 180, 248, 0.2);
 }
 
-/* Range Input */
-.cc-setting input[type="range"] {
-  width: 100%;
-  height: 6px;
-  background: rgba(50, 51, 54, 0.8);
-  border-radius: 3px;
-  appearance: none;
-  cursor: pointer;
+/* =============================================================================
+   Help Modal Styles
+   ============================================================================= */
+.cc-help-content {
+  margin-bottom: 20px;
 }
 
-.cc-setting input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #8ab4f8;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.2s;
+.cc-help-content p {
+  margin: 0 0 12px 0;
+  color: #bdc1c6;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-.cc-setting input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
+.cc-help-content p:last-child {
+  margin-bottom: 0;
 }
 
-.cc-range-value {
-  display: inline-block;
-  min-width: 60px;
-  text-align: right;
+.cc-help-shortcuts {
+  background: rgba(50, 51, 54, 0.5);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.cc-help-shortcuts h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
   color: #8ab4f8;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Settings Row with Range */
-.cc-setting-row {
+.cc-shortcut-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 8px;
 }
 
-.cc-setting-row input[type="range"] {
-  flex: 1;
+.cc-shortcut-row:last-child {
+  margin-bottom: 0;
+}
+
+.cc-shortcut-row kbd {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #e8eaed;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cc-shortcut-row span {
+  color: #9aa0a6;
+  font-size: 13px;
 }
 
 /* =============================================================================
-   Statistics Modal Styles
+   Empty State
    ============================================================================= */
+.cc-download-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #9aa0a6;
+}
 
+.cc-download-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* =============================================================================
+   Statistics Modal Styles (for future use)
+   ============================================================================= */
 .cc-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -758,4 +948,46 @@
 .cc-stats-row-value {
   color: #e8eaed;
   font-weight: 500;
+}
+
+/* =============================================================================
+   Legacy Styles (kept for backward compatibility)
+   ============================================================================= */
+.cc-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #9aa0a6;
+  background: rgba(41, 42, 45, 0.6);
+}
+
+.cc-btn-start {
+  background: rgba(129, 201, 149, 0.2);
+  color: #81c995;
+}
+
+.cc-btn-start:hover:not(:disabled) {
+  background: rgba(129, 201, 149, 0.3);
+}
+
+.cc-btn-stop {
+  background: rgba(242, 139, 130, 0.2);
+  color: #f28b82;
+}
+
+.cc-btn-stop:hover:not(:disabled) {
+  background: rgba(242, 139, 130, 0.3);
+}
+
+.cc-btn-debug {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  padding: 6px 8px;
+  font-weight: bold;
+}
+
+.cc-btn-debug:hover:not(:disabled) {
+  background: rgba(255, 193, 7, 0.3);
 }

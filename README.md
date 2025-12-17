@@ -2,9 +2,8 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
-![License](https://img.shields.io/badge/license-MIT-orange.svg)
 
 **Capture and download Google Meet closed captions in real-time**
 *No API keys required • Simple & Fast • Privacy-focused*
@@ -40,7 +39,14 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 - 🔄 **Smart deduplication** to prevent repeated text
 - 📊 **Real-time statistics** (caption count, word count, duration)
 
-### v3.0.0 New Features
+### v3.1.0 New Features
+- 🌐 **Multilingual support** - English/Korean with language toggle
+- 📋 **Copy to clipboard** - One-click copy with Ctrl+Shift+C
+- 💾 **Persistent storage** - Recordings saved even if tab closes
+- 📖 **Auto-guide** - Usage guide shown automatically
+- 🎯 **Simplified UX** - No manual start needed, fully automatic
+
+### v3.0.0 Features
 - ⚙️ **Settings panel** for complete customization
 - ⌨️ **Keyboard shortcuts** for all major actions
 - 🔔 **Toast notifications** for user feedback
@@ -135,10 +141,12 @@ cd google-meet-cc-to-srt
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Shift+S` | Start/Stop capture |
+| `Ctrl+Shift+C` | Copy to clipboard |
 | `Ctrl+Shift+D` | Download captions |
 | `Ctrl+Shift+H` | Show help modal |
 | `Esc` | Close modals |
+
+*Note: Capture starts automatically when CC is enabled in Google Meet*
 
 ---
 
@@ -380,12 +388,6 @@ Found a bug or have a suggestion?
 
 ---
 
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
 ## 🙏 Acknowledgments
 
 - Built with ❤️ using [Claude Code](https://claude.com/claude-code)
@@ -405,7 +407,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 <div align="center">
 
 **Made with Claude Code**
-v3.0.0 • 2024-12-17
+v3.1.0 • 2024-12-17
 
 [⬆ Back to top](#google-meet-cc-capturer)
 
