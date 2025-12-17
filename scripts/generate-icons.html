@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Icon Generator</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #1a1a1a; color: white; }
+    canvas { border: 1px solid #333; margin: 10px; }
+    .icons { display: flex; flex-wrap: wrap; gap: 20px; }
+    .icon-container { text-align: center; }
+    a { color: #8ab4f8; }
+  </style>
+</head>
+<body>
+  <h1>Google Meet Transcriber Icon Generator</h1>
+  <p>Right-click on each canvas and "Save image as..." to save the icons.</p>
+  <div class="icons">
+    <div class="icon-container">
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <p>16x16</p>
+    </div>
+    <div class="icon-container">
+      <canvas id="icon32" width="32" height="32"></canvas>
+      <p>32x32</p>
+    </div>
+    <div class="icon-container">
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <p>48x48</p>
+    </div>
+    <div class="icon-container">
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <p>128x128</p>
+    </div>
+  </div>
+
+  <h2>Download Links</h2>
+  <div id="downloads"></div>
+
+  <script>
+    function drawIcon(ctx, size) {
+      const scale = size / 128;
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#1a73e8');
+      gradient.addColorStop(1, '#4285f4');
+
+      // Background circle
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size * 0.47, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Video camera body
+      ctx.fillStyle = 'white';
+      const bodyX = 24 * scale;
+      const bodyY = 42 * scale;
+      const bodyW = 56 * scale;
+      const bodyH = 44 * scale;
+      const radius = 8 * scale;
+
+      ctx.beginPath();
+      ctx.roundRect(bodyX, bodyY, bodyW, bodyH, radius);
+      ctx.fill();
+
+      // Video camera lens
+      ctx.beginPath();
+      ctx.moveTo(80 * scale, 52 * scale);
+      ctx.lineTo(100 * scale, 38 * scale);
+      ctx.lineTo(100 * scale, 90 * scale);
+      ctx.lineTo(80 * scale, 76 * scale);
+      ctx.closePath();
+      ctx.fill();
+
+      // Sound waves
+      ctx.strokeStyle = '#1a73e8';
+      ctx.lineWidth = Math.max(2, 3 * scale);
+      ctx.lineCap = 'round';
+
+      // Wave 1
+      ctx.beginPath();
+      ctx.moveTo(38 * scale, 66 * scale);
+      ctx.quadraticCurveTo(40 * scale, 58 * scale, 42 * scale, 66 * scale);
+      ctx.quadraticCurveTo(40 * scale, 74 * scale, 38 * scale, 66 * scale);
+      ctx.stroke();
+
+      // Wave 2
+      ctx.beginPath();
+      ctx.moveTo(48 * scale, 66 * scale);
+      ctx.quadraticCurveTo(51 * scale, 54 * scale, 54 * scale, 66 * scale);
+      ctx.quadraticCurveTo(51 * scale, 78 * scale, 48 * scale, 66 * scale);
+      ctx.stroke();
+
+      // Wave 3
+      ctx.beginPath();
+      ctx.moveTo(60 * scale, 66 * scale);
+      ctx.quadraticCurveTo(63 * scale, 50 * scale, 66 * scale, 66 * scale);
+      ctx.quadraticCurveTo(63 * scale, 82 * scale, 60 * scale, 66 * scale);
+      ctx.stroke();
+    }
+
+    const sizes = [16, 32, 48, 128];
+    const downloads = document.getElementById('downloads');
+
+    sizes.forEach(size => {
+      const canvas = document.getElementById('icon' + size);
+      const ctx = canvas.getContext('2d');
+      drawIcon(ctx, size);
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `icon${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.textContent = `Download icon${size}.png`;
+      link.style.display = 'block';
+      link.style.marginBottom = '10px';
+      downloads.appendChild(link);
+    });
+  </script>
+</body>
+</html>

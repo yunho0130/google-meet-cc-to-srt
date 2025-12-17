@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Meet Transcriber - Panel</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header -->
+    <header class="panel-header">
+      <div class="header-left">
+        <h1>Meet Transcriber</h1>
+      </div>
+      <nav class="header-nav">
+        <button class="nav-btn active" data-view="meetings">Meetings</button>
+        <button class="nav-btn" data-view="settings">Settings</button>
+      </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="panel-main">
+      <!-- Meetings View -->
+      <div class="view meetings-view" id="meetingsView">
+        <!-- Meetings List -->
+        <div class="meetings-list-container" id="meetingsListContainer">
+          <div class="view-header">
+            <h2>Your Meetings</h2>
+            <span class="meeting-count" id="meetingCount">0 meetings</span>
+          </div>
+          <div class="meetings-list" id="meetingsList">
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading meetings...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meeting Detail -->
+        <div class="meeting-detail-container" id="meetingDetailContainer" style="display: none;">
+          <div class="detail-header">
+            <button class="back-btn" id="backToList">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              Back
+            </button>
+            <div class="detail-actions">
+              <button class="btn btn-icon" id="deleteMeeting" title="Delete">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="meeting-info-header">
+            <input type="text" class="meeting-title-input" id="meetingTitleInput" placeholder="Meeting Title">
+            <div class="meeting-meta">
+              <span id="meetingDate">-</span>
+              <span id="meetingDuration">-</span>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="transcript">Transcript</button>
+            <button class="tab-btn" data-tab="notes">Meeting Notes</button>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="tab-content">
+            <!-- Transcript Tab -->
+            <div class="tab-pane active" id="transcriptTab">
+              <div class="transcript-container">
+                <div class="transcript-content" id="transcriptContent">
+                  <p class="empty-state">No transcript available</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes Tab -->
+            <div class="tab-pane" id="notesTab" style="display: none;">
+              <div class="notes-container">
+                <div class="notes-actions">
+                  <button class="btn btn-primary" id="generateNotes">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                    </svg>
+                    Generate Notes with AI
+                  </button>
+                </div>
+
+                <div class="notes-content" id="notesContent">
+                  <p class="empty-state">Click "Generate Notes" to create AI-powered meeting notes</p>
+                </div>
+
+                <!-- Notes Editor (shown after generation) -->
+                <div class="notes-editor" id="notesEditor" style="display: none;">
+                  <div class="notes-section">
+                    <h3>Summary</h3>
+                    <textarea id="notesSummary" rows="3" placeholder="Meeting summary..."></textarea>
+                  </div>
+
+                  <div class="notes-section">
+                    <h3>Key Discussion Points</h3>
+                    <div class="editable-list" id="keyPoints"></div>
+                    <button class="btn btn-text add-item-btn" data-target="keyPoints">+ Add point</button>
+                  </div>
+
+                  <div class="notes-section">
+                    <h3>Decisions Made</h3>
+                    <div class="editable-list" id="decisions"></div>
+                    <button class="btn btn-text add-item-btn" data-target="decisions">+ Add decision</button>
+                  </div>
+
+                  <div class="notes-section">
+                    <h3>Action Items</h3>
+                    <div class="action-items-list" id="actionItems"></div>
+                    <button class="btn btn-text add-item-btn" data-target="actionItems">+ Add action item</button>
+                  </div>
+
+                  <div class="notes-section">
+                    <h3>Follow-up</h3>
+                    <div class="editable-list" id="followUp"></div>
+                    <button class="btn btn-text add-item-btn" data-target="followUp">+ Add follow-up</button>
+                  </div>
+
+                  <div class="notes-actions bottom-actions">
+                    <button class="btn btn-secondary" id="saveNotes">Save Changes</button>
+                    <button class="btn btn-primary" id="sendEmail">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                      </svg>
+                      Send Email
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div class="view settings-view" id="settingsView" style="display: none;">
+        <div class="settings-content">
+          <div class="settings-group">
+            <h3>API Configuration</h3>
+            <div class="setting-item">
+              <label for="settingsApiKey">OpenAI API Key</label>
+              <div class="input-group">
+                <input type="password" id="settingsApiKey" placeholder="sk-...">
+                <button class="btn btn-secondary" id="settingsSaveApiKey">Save</button>
+              </div>
+              <p class="setting-hint">Your API key is encrypted and stored locally</p>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3>Transcription Settings</h3>
+            <div class="setting-item">
+              <label for="settingsLanguage">Primary Language</label>
+              <select id="settingsLanguage">
+                <option value="ko">Korean (한국어)</option>
+                <option value="en">English</option>
+                <option value="ja">Japanese (日本語)</option>
+                <option value="zh">Chinese (中文)</option>
+                <option value="es">Spanish (Español)</option>
+                <option value="fr">French (Français)</option>
+                <option value="de">German (Deutsch)</option>
+              </select>
+            </div>
+
+            <div class="setting-item">
+              <label for="settingsModel">Whisper Model</label>
+              <select id="settingsModel">
+                <option value="whisper-1">Whisper-1 (Recommended)</option>
+              </select>
+            </div>
+
+            <div class="setting-item toggle-item">
+              <div>
+                <label>Auto-transcribe meetings</label>
+                <p class="setting-hint">Automatically start transcription when joining a meeting</p>
+              </div>
+              <input type="checkbox" id="settingsAutoTranscribe" class="toggle">
+            </div>
+
+            <div class="setting-item toggle-item">
+              <div>
+                <label>Show transcript overlay</label>
+                <p class="setting-hint">Display live transcript during meetings</p>
+              </div>
+              <input type="checkbox" id="settingsShowOverlay" class="toggle" checked>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3>Meeting Notes</h3>
+            <div class="setting-item">
+              <label for="settingsGptModel">GPT Model</label>
+              <select id="settingsGptModel">
+                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Affordable)</option>
+                <option value="gpt-4o">GPT-4o (Best Quality)</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <h3>Data Management</h3>
+            <div class="setting-item">
+              <button class="btn btn-secondary" id="exportData">Export All Data</button>
+              <button class="btn btn-danger" id="clearData">Clear All Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" style="display: none;">
+      <span class="toast-message"></span>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+      <div class="loading-content">
+        <div class="spinner large"></div>
+        <p id="loadingText">Processing...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js" type="module"></script>
+</body>
+</html>

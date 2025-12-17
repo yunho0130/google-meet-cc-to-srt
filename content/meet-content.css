@@ -1,0 +1,269 @@
+/**
+ * Styles for Google Meet Transcriber Content Script
+ * Overlay and transcript panel styles
+ */
+
+/* Container */
+.gmt-overlay-container {
+  position: fixed;
+  z-index: 9999;
+  font-family: 'Google Sans', 'Segoe UI', Roboto, Arial, sans-serif;
+  pointer-events: none;
+}
+
+.gmt-overlay-container * {
+  box-sizing: border-box;
+}
+
+/* Status Indicator */
+.gmt-status-indicator {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(32, 33, 36, 0.95);
+  border-radius: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+}
+
+.gmt-status-indicator:hover {
+  background: rgba(48, 49, 52, 0.98);
+  transform: translateY(-1px);
+}
+
+.gmt-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9aa0a6;
+  transition: background 0.3s ease;
+}
+
+.gmt-status-idle .gmt-status-dot {
+  background: #9aa0a6;
+}
+
+.gmt-status-recording .gmt-status-dot {
+  background: #ea4335;
+  animation: pulse 1.5s infinite;
+}
+
+.gmt-status-error .gmt-status-dot {
+  background: #f29900;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.gmt-status-text {
+  color: #e8eaed;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Transcript Panel */
+.gmt-transcript-panel {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  width: 380px;
+  max-height: 400px;
+  background: rgba(32, 33, 36, 0.97);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.gmt-transcript-panel.gmt-minimized {
+  max-height: 48px;
+}
+
+.gmt-transcript-panel.gmt-minimized .gmt-panel-content,
+.gmt-transcript-panel.gmt-minimized .gmt-panel-footer {
+  display: none;
+}
+
+/* Panel Header */
+.gmt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(48, 49, 52, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: grab;
+  user-select: none;
+}
+
+.gmt-panel-header:active {
+  cursor: grabbing;
+}
+
+.gmt-panel-title {
+  color: #e8eaed;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gmt-panel-title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #8ab4f8;
+  border-radius: 50%;
+}
+
+.gmt-panel-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.gmt-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #9aa0a6;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gmt-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8eaed;
+}
+
+/* Panel Content */
+.gmt-panel-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.gmt-transcript-content {
+  height: 280px;
+  overflow-y: auto;
+  padding: 12px 16px;
+  scroll-behavior: smooth;
+}
+
+.gmt-transcript-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gmt-transcript-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gmt-transcript-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.gmt-transcript-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.gmt-transcript-placeholder {
+  color: #9aa0a6;
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 20px;
+  font-style: italic;
+}
+
+/* Transcript Entry */
+.gmt-transcript-entry {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gmt-transcript-time {
+  color: #8ab4f8;
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 65px;
+  flex-shrink: 0;
+}
+
+.gmt-transcript-text {
+  color: #e8eaed;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Panel Footer */
+.gmt-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(48, 49, 52, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gmt-word-count {
+  color: #9aa0a6;
+  font-size: 12px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 500px) {
+  .gmt-transcript-panel {
+    width: 320px;
+    max-height: 300px;
+    right: 10px;
+    bottom: 80px;
+  }
+
+  .gmt-transcript-content {
+    height: 200px;
+  }
+}
+
+/* Dark mode optimizations (Google Meet is always dark) */
+@media (prefers-color-scheme: dark) {
+  .gmt-overlay-container {
+    color-scheme: dark;
+  }
+}

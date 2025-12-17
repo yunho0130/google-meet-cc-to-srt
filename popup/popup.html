@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Meet Transcriber</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="logo-section">
+        <img src="../assets/icons/icon48.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+        <div class="title-section">
+          <h1>Meet Transcriber</h1>
+          <span class="version">v1.0.0</span>
+        </div>
+      </div>
+      <div class="header-status" id="connectionStatus">
+        <span class="status-dot"></span>
+        <span class="status-text">Ready</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="popup-main">
+      <!-- API Key Section -->
+      <section class="section api-section" id="apiSection">
+        <div class="section-header">
+          <h2>OpenAI API Key</h2>
+          <span class="status-badge" id="apiStatus">Not configured</span>
+        </div>
+        <div class="api-input-group">
+          <input
+            type="password"
+            id="apiKeyInput"
+            placeholder="sk-..."
+            autocomplete="off"
+          >
+          <button id="toggleApiKey" class="btn btn-icon" title="Show/Hide">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+        <div class="api-actions">
+          <button id="saveApiKey" class="btn btn-primary">Save Key</button>
+          <button id="validateApiKey" class="btn btn-secondary">Validate</button>
+        </div>
+        <p class="api-hint">Your API key is stored locally and encrypted.</p>
+      </section>
+
+      <!-- Meeting Status Section -->
+      <section class="section meeting-section">
+        <div class="section-header">
+          <h2>Current Meeting</h2>
+        </div>
+        <div class="meeting-status" id="meetingStatus">
+          <div class="no-meeting">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <p>No active meeting detected</p>
+            <span class="hint">Open Google Meet to start</span>
+          </div>
+          <div class="active-meeting" style="display: none;">
+            <div class="meeting-info">
+              <span class="meeting-title" id="meetingTitle">Meeting Title</span>
+              <span class="meeting-duration" id="meetingDuration">00:00:00</span>
+            </div>
+            <div class="transcription-controls">
+              <button id="toggleTranscription" class="btn btn-primary btn-large">
+                <span class="btn-icon-start">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="8"></circle>
+                  </svg>
+                </span>
+                Start Recording
+              </button>
+            </div>
+            <div class="transcription-stats" id="transcriptionStats" style="display: none;">
+              <div class="stat">
+                <span class="stat-value" id="wordCount">0</span>
+                <span class="stat-label">Words</span>
+              </div>
+              <div class="stat">
+                <span class="stat-value" id="segmentCount">0</span>
+                <span class="stat-label">Segments</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Settings -->
+      <section class="section settings-section">
+        <div class="section-header">
+          <h2>Quick Settings</h2>
+        </div>
+        <div class="settings-list">
+          <label class="setting-item">
+            <span class="setting-label">Auto-transcribe</span>
+            <input type="checkbox" id="autoTranscribe" class="toggle">
+          </label>
+          <label class="setting-item">
+            <span class="setting-label">Show overlay</span>
+            <input type="checkbox" id="showOverlay" class="toggle" checked>
+          </label>
+          <div class="setting-item">
+            <span class="setting-label">Language</span>
+            <select id="language" class="select-input">
+              <option value="ko">Korean</option>
+              <option value="en">English</option>
+              <option value="ja">Japanese</option>
+              <option value="zh">Chinese</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Meetings -->
+      <section class="section meetings-section">
+        <div class="section-header">
+          <h2>Recent Meetings</h2>
+          <button id="viewAllMeetings" class="btn btn-text">View All</button>
+        </div>
+        <div class="meetings-list" id="meetingsList">
+          <div class="empty-state">
+            <p>No meetings recorded yet</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <button id="openFullPanel" class="btn btn-secondary btn-block">
+        Open Full Panel
+      </button>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" style="display: none;">
+    <span class="toast-message"></span>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "google-meet-transcriber",
+  "version": "1.0.0",
+  "description": "Chrome extension for Google Meet with STT transcription using OpenAI Whisper API",
+  "private": true,
+  "scripts": {
+    "generate-icons": "node scripts/generate-icons.js",
+    "lint": "eslint .",
+    "build": "echo 'No build step required - this is a plain JavaScript extension'",
+    "package": "zip -r dist/google-meet-transcriber.zip manifest.json background/ content/ popup/ sidepanel/ offscreen/ utils/ assets/ -x '*.DS_Store'"
+  },
+  "keywords": [
+    "chrome-extension",
+    "google-meet",
+    "transcription",
+    "stt",
+    "openai",
+    "whisper"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "canvas": "^2.11.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

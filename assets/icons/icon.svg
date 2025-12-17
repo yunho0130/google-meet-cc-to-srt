@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a73e8"/>
+      <stop offset="100%" style="stop-color:#4285f4"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="url(#bgGradient)"/>
+  <!-- Video camera body -->
+  <rect x="24" y="42" width="56" height="44" rx="8" fill="white"/>
+  <!-- Video camera lens -->
+  <polygon points="80,52 100,38 100,90 80,76" fill="white"/>
+  <!-- Microphone waves (transcription indicator) -->
+  <path d="M38 66 C38 66, 42 58, 42 66 C42 74, 38 66, 38 66" stroke="#1a73e8" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M48 66 C48 66, 54 54, 54 66 C54 78, 48 66, 48 66" stroke="#1a73e8" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M60 66 C60 66, 66 50, 66 66 C66 82, 60 66, 60 66" stroke="#1a73e8" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>
