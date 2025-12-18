@@ -15,19 +15,7 @@ Google Meet의 자막(CC)을 캡처하여 텍스트/SRT 파일로 다운로드�
 
 ## 🚀 설치 방법
 
-### 1. 파일 준비
-
-기존 `manifest.json`을 백업하고 `manifest-simple.json`으로 교체:
-
-```bash
-# 백업
-mv manifest.json manifest-api.json
-
-# 심플 버전으로 교체
-mv manifest-simple.json manifest.json
-```
-
-### 2. Chrome에 로드
+### Chrome에 로드
 
 1. Chrome에서 `chrome://extensions/` 접속
 2. 우측 상단 "개발자 모드" 활성화
@@ -45,11 +33,9 @@ mv manifest-simple.json manifest.json
 
 ### 2. 캡처 시작
 
-확장 프로그램 아이콘을 클릭하고:
-
-1. "캡처 시작" 버튼 클릭
-2. 회의 진행 중 자막이 자동으로 캡처됨
-3. 우측 하단에 캡처 패널이 표시됨
+1. CC가 켜지면 자동으로 캡처가 시작됩니다
+2. 회의 진행 중 자막이 실시간으로 기록됩니다
+3. 우측 하단에 캡처 패널이 표시됩니다
 
 ### 3. 캡처 중지 및 다운로드
 
@@ -120,30 +106,6 @@ google-meet-cc-to-srt/
 │   └── popup-simple.js       # 팝업 로직
 └── assets/
     └── icons/                 # 확장 프로그램 아이콘
-```
-
-## 🆚 API 버전과의 비교
-
-| 기능 | 심플 버전 | API 버전 |
-|------|-----------|----------|
-| API 키 필요 | ❌ 불필요 | ✅ 필요 |
-| 비용 | 무료 | API 사용량에 따라 과금 |
-| 정확도 | Google 자막 | 매우 높음 (Whisper/Gemini) |
-| 속도 | 실시간 | 약간 지연 |
-| CC 필수 | ✅ 필수 | ❌ 불필요 |
-
-## 🔄 API 버전으로 전환하기
-
-고품질 음성 인식이 필요한 경우:
-
-```bash
-# 심플 버전 백업
-mv manifest.json manifest-simple.json
-
-# API 버전으로 전환
-mv manifest-api.json manifest.json
-
-# Chrome에서 확장 프로그램 재로드
 ```
 
 ## 📝 라이선스

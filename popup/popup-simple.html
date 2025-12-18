@@ -33,6 +33,7 @@
       margin-bottom: 16px;
       padding-bottom: 12px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
     }
 
     h1 {
@@ -44,6 +45,42 @@
     .subtitle {
       font-size: 12px;
       color: #9aa0a6;
+    }
+
+    .lang-toggle {
+      display: flex;
+      gap: 6px;
+    }
+
+    .header .lang-toggle {
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+
+    .history-header .lang-toggle {
+      margin-left: auto;
+    }
+
+    .lang-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #c7cad1;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s, border 0.2s, color 0.2s;
+    }
+
+    .lang-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .lang-btn.active {
+      background: rgba(138, 180, 248, 0.25);
+      border-color: rgba(138, 180, 248, 0.5);
+      color: #e8eaed;
     }
 
     /* Quick Guide Section */
@@ -468,32 +505,36 @@
   <!-- Main View -->
   <div id="main-view" class="view active">
     <div class="header">
-      <h1>CC Capturer</h1>
-      <div class="subtitle">Google Meet 자막 캡처</div>
+      <div class="lang-toggle" data-lang-toggle>
+        <button class="lang-btn" data-lang="ko">KO</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
+      <h1 id="popup-title">CC Capturer</h1>
+      <div class="subtitle" id="popup-subtitle">Google Meet 자막 캡처</div>
     </div>
 
     <!-- Quick Guide -->
     <div class="guide-section">
       <div class="guide-header" id="guide-header">
-        <span class="guide-title">Quick Guide</span>
+        <span class="guide-title" id="guide-title">Quick Guide</span>
         <button class="guide-toggle" id="guide-toggle">-</button>
       </div>
       <div class="guide-content" id="guide-content">
         <ol>
-          <li>Google Meet 회의에 참여</li>
-          <li>CC 버튼을 눌러 자막 활성화</li>
-          <li>자막이 자동으로 캡처됩니다</li>
-          <li>다운로드 또는 복사</li>
+          <li id="guide-step-1">Google Meet 회의에 참여</li>
+          <li id="guide-step-2">CC 버튼을 눌러 자막 활성화</li>
+          <li id="guide-step-3">자막이 자동으로 캡처됩니다</li>
+          <li id="guide-step-4">다운로드 또는 복사</li>
         </ol>
         <div class="shortcuts">
-          <div class="shortcuts-title">Shortcuts</div>
+          <div class="shortcuts-title" id="shortcuts-title">Shortcuts</div>
           <div class="shortcut-item">
             <kbd>Ctrl+Shift+D</kbd>
-            <span class="shortcut-label">다운로드</span>
+            <span class="shortcut-label" id="shortcut-download">다운로드</span>
           </div>
           <div class="shortcut-item">
             <kbd>Ctrl+Shift+C</kbd>
-            <span class="shortcut-label">복사</span>
+            <span class="shortcut-label" id="shortcut-copy">복사</span>
           </div>
         </div>
       </div>
@@ -503,11 +544,11 @@
 
     <div class="status">
       <div class="status-row">
-        <span class="label">상태</span>
+        <span class="label" id="status-label">상태</span>
         <span class="value" id="status">대기 중</span>
       </div>
       <div class="status-row">
-        <span class="label">캡처된 자막</span>
+        <span class="label" id="captured-label">캡처된 자막</span>
         <span class="value" id="count">0</span>
       </div>
     </div>
@@ -527,7 +568,11 @@
   <div id="history-view" class="view">
     <div class="history-header">
       <button class="btn-back" id="back-from-history">&larr;</button>
-      <span class="history-title">회의 히스토리</span>
+      <span class="history-title" id="history-title">회의 히스토리</span>
+      <div class="lang-toggle" data-lang-toggle>
+        <button class="lang-btn" data-lang="ko">KO</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
     </div>
     <div class="history-list" id="history-list">
       <!-- History items will be inserted here -->
@@ -539,18 +584,22 @@
     <div class="history-header">
       <button class="btn-back" id="back-from-detail">&larr;</button>
       <span class="history-title" id="detail-title">회의 상세</span>
+      <div class="lang-toggle" data-lang-toggle>
+        <button class="lang-btn" data-lang="ko">KO</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
     </div>
     <div class="history-detail-info">
       <div class="history-detail-row">
-        <span class="history-detail-label">날짜</span>
+        <span class="history-detail-label" id="detail-date-label">날짜</span>
         <span class="history-detail-value" id="detail-date">-</span>
       </div>
       <div class="history-detail-row">
-        <span class="history-detail-label">시간</span>
+        <span class="history-detail-label" id="detail-time-label">시간</span>
         <span class="history-detail-value" id="detail-time">-</span>
       </div>
       <div class="history-detail-row">
-        <span class="history-detail-label">자막 수</span>
+        <span class="history-detail-label" id="detail-count-label">자막 수</span>
         <span class="history-detail-value" id="detail-count">-</span>
       </div>
     </div>

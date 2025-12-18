@@ -12,6 +12,118 @@ const MessageTypes = {
 };
 
 const STORAGE_KEY = 'cc_recording_history';
+const LANGUAGE_KEY = 'popupLanguage';
+
+const LANGUAGES = {
+  ko: {
+    title: 'CC Capturer',
+    subtitle: 'Google Meet 자막 캡처',
+    guideTitle: 'Quick Guide',
+    guideSteps: [
+      'Google Meet 회의에 참여',
+      'CC 버튼을 눌러 자막 활성화',
+      '자막이 자동으로 캡처됩니다',
+      '다운로드 또는 복사'
+    ],
+    shortcutsTitle: 'Shortcuts',
+    shortcutDownload: '다운로드',
+    shortcutCopy: '복사',
+    statusLabel: '상태',
+    statusIdle: '대기 중',
+    statusCapturing: '캡처 중...',
+    capturedLabel: '캡처된 자막',
+    historyTitle: '회의 히스토리',
+    detailDateLabel: '날짜',
+    detailTimeLabel: '시간',
+    detailCountLabel: '자막 수',
+    buttons: {
+      start: '캡처 시작',
+      starting: '시작 중...',
+      stop: '캡처 중지',
+      stopping: '중지 중...',
+      history: '회의 히스토리',
+      detailDownloadTxt: 'TXT 다운로드',
+      detailDownloadSrt: 'SRT 다운로드',
+      delete: '삭제'
+    },
+    alerts: {
+      captureStarted: '캡처를 시작했습니다',
+      captureStopped: (count) => `캡처를 중지했습니다 (${count}개 자막)`,
+      captureStartFailed: '캡처 시작 실패',
+      captureStopFailed: '캡처 중지 실패',
+      txtDownloaded: 'TXT 파일 다운로드 완료',
+      srtDownloaded: 'SRT 파일 다운로드 완료',
+      downloadFailed: '다운로드 실패',
+      sessionNotFound: '세션을 찾을 수 없습니다',
+      sessionLoadFailed: '세션 상세 정보를 불러올 수 없습니다',
+      historyLoadFailed: '히스토리를 불러올 수 없습니다',
+      historyEmpty: '저장된 회의가 없습니다',
+      deleted: '삭제되었습니다',
+      deleteFailed: '삭제에 실패했습니다'
+    },
+    confirmDelete: '이 회의 기록을 삭제하시겠습니까?',
+    errors: {
+      noMeetTab: 'Google Meet 탭이 활성화되어 있지 않습니다'
+    },
+    defaultMeetingTitle: '회의',
+    countSuffix: '개',
+    countItems: (count) => `${count}개`
+  },
+  en: {
+    title: 'CC Capturer',
+    subtitle: 'Google Meet CC Capture',
+    guideTitle: 'Quick Guide',
+    guideSteps: [
+      'Join a Google Meet meeting',
+      'Enable CC captions',
+      'Captions are captured automatically',
+      'Download or copy'
+    ],
+    shortcutsTitle: 'Shortcuts',
+    shortcutDownload: 'Download',
+    shortcutCopy: 'Copy',
+    statusLabel: 'Status',
+    statusIdle: 'Idle',
+    statusCapturing: 'Capturing...',
+    capturedLabel: 'Captured Captions',
+    historyTitle: 'Meeting History',
+    detailDateLabel: 'Date',
+    detailTimeLabel: 'Time',
+    detailCountLabel: 'Captions',
+    buttons: {
+      start: 'Start Capture',
+      starting: 'Starting...',
+      stop: 'Stop Capture',
+      stopping: 'Stopping...',
+      history: 'Meeting History',
+      detailDownloadTxt: 'Download TXT',
+      detailDownloadSrt: 'Download SRT',
+      delete: 'Delete'
+    },
+    alerts: {
+      captureStarted: 'Capture started',
+      captureStopped: (count) => `Capture stopped (${count} captions)`,
+      captureStartFailed: 'Failed to start capture',
+      captureStopFailed: 'Failed to stop capture',
+      txtDownloaded: 'TXT download complete',
+      srtDownloaded: 'SRT download complete',
+      downloadFailed: 'Download failed',
+      sessionNotFound: 'Session not found',
+      sessionLoadFailed: 'Failed to load session details',
+      historyLoadFailed: 'Failed to load history',
+      historyEmpty: 'No saved meetings',
+      deleted: 'Deleted',
+      deleteFailed: 'Failed to delete'
+    },
+    confirmDelete: 'Delete this meeting record?',
+    errors: {
+      noMeetTab: 'No active Google Meet tab.'
+    },
+    defaultMeetingTitle: 'Meeting',
+    countSuffix: 'items',
+    countItems: (count) => `${count} items`
+  }
+};
 
 // DOM Elements - Main View
 const mainView = document.getElementById('main-view');
@@ -31,6 +143,23 @@ const alertEl = document.getElementById('alert');
 const guideHeader = document.getElementById('guide-header');
 const guideToggle = document.getElementById('guide-toggle');
 const guideContent = document.getElementById('guide-content');
+const popupTitle = document.getElementById('popup-title');
+const popupSubtitle = document.getElementById('popup-subtitle');
+const guideTitle = document.getElementById('guide-title');
+const guideStep1 = document.getElementById('guide-step-1');
+const guideStep2 = document.getElementById('guide-step-2');
+const guideStep3 = document.getElementById('guide-step-3');
+const guideStep4 = document.getElementById('guide-step-4');
+const shortcutsTitle = document.getElementById('shortcuts-title');
+const shortcutDownload = document.getElementById('shortcut-download');
+const shortcutCopy = document.getElementById('shortcut-copy');
+const statusLabel = document.getElementById('status-label');
+const capturedLabel = document.getElementById('captured-label');
+const historyTitle = document.getElementById('history-title');
+const detailDateLabel = document.getElementById('detail-date-label');
+const detailTimeLabel = document.getElementById('detail-time-label');
+const detailCountLabel = document.getElementById('detail-count-label');
+const langButtons = document.querySelectorAll('[data-lang-toggle] .lang-btn');
 
 // History elements
 const historyList = document.getElementById('history-list');
@@ -48,6 +177,74 @@ const detailDelete = document.getElementById('detail-delete');
 // State
 let updateInterval = null;
 let currentDetailSession = null;
+let currentLanguage = 'ko';
+
+function t(key) {
+  const value = key.split('.').reduce((obj, part) => (obj ? obj[part] : undefined), LANGUAGES[currentLanguage]);
+  return value !== undefined ? value : key;
+}
+
+function formatCount(count) {
+  const formatter = LANGUAGES[currentLanguage]?.countItems;
+  return formatter ? formatter(count) : `${count}`;
+}
+
+function updateButtonLabels() {
+  startBtn.textContent = startBtn.dataset.state === 'starting' ? t('buttons.starting') : t('buttons.start');
+  stopBtn.textContent = stopBtn.dataset.state === 'stopping' ? t('buttons.stopping') : t('buttons.stop');
+  historyBtn.textContent = t('buttons.history');
+  detailDownloadTxt.textContent = t('buttons.detailDownloadTxt');
+  detailDownloadSrt.textContent = t('buttons.detailDownloadSrt');
+  detailDelete.textContent = t('buttons.delete');
+}
+
+function applyLanguage() {
+  document.documentElement.lang = currentLanguage;
+  popupTitle.textContent = t('title');
+  popupSubtitle.textContent = t('subtitle');
+  guideTitle.textContent = t('guideTitle');
+  guideStep1.textContent = t('guideSteps')[0];
+  guideStep2.textContent = t('guideSteps')[1];
+  guideStep3.textContent = t('guideSteps')[2];
+  guideStep4.textContent = t('guideSteps')[3];
+  shortcutsTitle.textContent = t('shortcutsTitle');
+  shortcutDownload.textContent = t('shortcutDownload');
+  shortcutCopy.textContent = t('shortcutCopy');
+  statusLabel.textContent = t('statusLabel');
+  capturedLabel.textContent = t('capturedLabel');
+  historyTitle.textContent = t('historyTitle');
+  detailDateLabel.textContent = t('detailDateLabel');
+  detailTimeLabel.textContent = t('detailTimeLabel');
+  detailCountLabel.textContent = t('detailCountLabel');
+  updateButtonLabels();
+
+  if (currentDetailSession) {
+    detailCount.textContent = formatCount(currentDetailSession.captions.length);
+  }
+
+  langButtons.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === currentLanguage);
+  });
+
+  updateStatus();
+
+  if (historyView.classList.contains('active') || historyDetailView.classList.contains('active')) {
+    loadHistory();
+  }
+}
+
+async function loadLanguage() {
+  const result = await chrome.storage.local.get(LANGUAGE_KEY);
+  currentLanguage = result[LANGUAGE_KEY] || 'ko';
+  applyLanguage();
+}
+
+function setLanguage(lang) {
+  if (!LANGUAGES[lang]) return;
+  currentLanguage = lang;
+  chrome.storage.local.set({ [LANGUAGE_KEY]: lang });
+  applyLanguage();
+}
 
 /**
  * Show alert message
@@ -69,7 +266,7 @@ async function sendToTab(message) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   if (!tab || !tab.url.includes('meet.google.com')) {
-    throw new Error('Google Meet 탭이 활성화되어 있지 않습니다');
+    throw new Error(t('errors.noMeetTab'));
   }
 
   return new Promise((resolve, reject) => {
@@ -91,7 +288,7 @@ async function updateStatus() {
     const response = await sendToTab({ type: MessageTypes.GET_STATUS });
 
     if (response) {
-      statusEl.textContent = response.isCapturing ? '캡처 중...' : '대기 중';
+      statusEl.textContent = response.isCapturing ? t('statusCapturing') : t('statusIdle');
       countEl.textContent = response.count || 0;
 
       startBtn.disabled = response.isCapturing;
@@ -108,13 +305,15 @@ async function updateStatus() {
 async function startCapture() {
   try {
     startBtn.disabled = true;
-    startBtn.textContent = '시작 중...';
+    startBtn.dataset.state = 'starting';
+    updateButtonLabels();
 
     const response = await sendToTab({ type: MessageTypes.START_CAPTURE });
 
     if (response.success) {
-      showAlert('캡처를 시작했습니다', 'success');
-      startBtn.textContent = '캡처 시작';
+      showAlert(t('alerts.captureStarted'), 'success');
+      startBtn.dataset.state = 'idle';
+      updateButtonLabels();
       stopBtn.disabled = false;
 
       // Start status updates
@@ -126,9 +325,10 @@ async function startCapture() {
     }
   } catch (error) {
     console.error('Start failed:', error);
-    showAlert(error.message || '캡처 시작 실패', 'error');
+    showAlert(error.message || t('alerts.captureStartFailed'), 'error');
     startBtn.disabled = false;
-    startBtn.textContent = '캡처 시작';
+    startBtn.dataset.state = 'idle';
+    updateButtonLabels();
   }
 }
 
@@ -138,13 +338,15 @@ async function startCapture() {
 async function stopCapture() {
   try {
     stopBtn.disabled = true;
-    stopBtn.textContent = '중지 중...';
+    stopBtn.dataset.state = 'stopping';
+    updateButtonLabels();
 
     const response = await sendToTab({ type: MessageTypes.STOP_CAPTURE });
 
     if (response.success) {
-      showAlert(`캡처를 중지했습니다 (${response.count}개 자막)`, 'success');
-      stopBtn.textContent = '캡처 중지';
+      showAlert(t('alerts.captureStopped')(response.count), 'success');
+      stopBtn.dataset.state = 'idle';
+      updateButtonLabels();
       startBtn.disabled = false;
 
       // Stop status updates
@@ -159,9 +361,10 @@ async function stopCapture() {
     }
   } catch (error) {
     console.error('Stop failed:', error);
-    showAlert(error.message || '캡처 중지 실패', 'error');
+    showAlert(error.message || t('alerts.captureStopFailed'), 'error');
     stopBtn.disabled = false;
-    stopBtn.textContent = '캡처 중지';
+    stopBtn.dataset.state = 'idle';
+    updateButtonLabels();
   }
 }
 
@@ -172,10 +375,10 @@ async function downloadText() {
   try {
     downloadTxtBtn.disabled = true;
     await sendToTab({ type: MessageTypes.DOWNLOAD_TEXT });
-    showAlert('TXT 파일 다운로드 완료', 'success');
+    showAlert(t('alerts.txtDownloaded'), 'success');
   } catch (error) {
     console.error('Download failed:', error);
-    showAlert(error.message || '다운로드 실패', 'error');
+    showAlert(error.message || t('alerts.downloadFailed'), 'error');
   } finally {
     downloadTxtBtn.disabled = false;
   }
@@ -188,10 +391,10 @@ async function downloadSRT() {
   try {
     downloadSrtBtn.disabled = true;
     await sendToTab({ type: MessageTypes.DOWNLOAD_SRT });
-    showAlert('SRT 파일 다운로드 완료', 'success');
+    showAlert(t('alerts.srtDownloaded'), 'success');
   } catch (error) {
     console.error('Download failed:', error);
-    showAlert(error.message || '다운로드 실패', 'error');
+    showAlert(error.message || t('alerts.downloadFailed'), 'error');
   } finally {
     downloadSrtBtn.disabled = false;
   }
@@ -249,7 +452,7 @@ async function loadHistory() {
     renderHistoryList(sessions);
   } catch (error) {
     console.error('Failed to load history:', error);
-    historyList.innerHTML = '<div class="history-empty"><div class="history-empty-icon">⚠️</div><div class="history-empty-text">히스토리를 불러올 수 없습니다</div></div>';
+    historyList.innerHTML = `<div class="history-empty"><div class="history-empty-icon">⚠️</div><div class="history-empty-text">${t('alerts.historyLoadFailed')}</div></div>`;
   }
 }
 
@@ -258,14 +461,13 @@ async function loadHistory() {
  */
 function renderHistoryList(sessions) {
   if (sessions.length === 0) {
-    historyList.innerHTML = '<div class="history-empty"><div class="history-empty-icon">📝</div><div class="history-empty-text">저장된 회의가 없습니다</div></div>';
+    historyList.innerHTML = `<div class="history-empty"><div class="history-empty-icon">📝</div><div class="history-empty-text">${t('alerts.historyEmpty')}</div></div>`;
     return;
   }
 
   historyList.innerHTML = sessions.map(session => {
     const date = new Date(session.startTime);
-    const dateStr = formatDate(date);
-    const timeStr = formatTime(date);
+    const timestamp = formatFullTimestamp(date);
     const title = extractMeetingTitle(session);
     const preview = getPreviewText(session.captions);
     const count = session.captions.length;
@@ -275,8 +477,8 @@ function renderHistoryList(sessions) {
         <div class="history-item-header">
           <span class="history-item-title">${escapeHtml(title)}</span>
           <div class="history-item-meta">
-            <span class="history-item-date">${dateStr}</span>
-            <span class="history-item-count">${count}개</span>
+            <span class="history-item-date">${timestamp}</span>
+            <span class="history-item-count">${formatCount(count)}</span>
           </div>
         </div>
         <div class="history-item-preview">${escapeHtml(preview)}</div>
@@ -305,9 +507,9 @@ function extractMeetingTitle(session) {
     if (title.length > 40) {
       title = title.substring(0, 40) + '...';
     }
-    return title || '회의';
+    return title || t('defaultMeetingTitle');
   }
-  return '회의';
+  return t('defaultMeetingTitle');
 }
 
 /**
@@ -336,7 +538,7 @@ async function showSessionDetail(sessionId) {
     const session = history[sessionId];
 
     if (!session) {
-      showAlert('세션을 찾을 수 없습니다', 'error');
+      showAlert(t('alerts.sessionNotFound'), 'error');
       return;
     }
 
@@ -348,7 +550,7 @@ async function showSessionDetail(sessionId) {
     detailTitle.textContent = title;
     detailDate.textContent = formatDate(date);
     detailTime.textContent = formatTime(date);
-    detailCount.textContent = `${session.captions.length}개`;
+    detailCount.textContent = formatCount(session.captions.length);
 
     // Render caption content
     detailContent.innerHTML = session.captions.map(caption => {
@@ -358,7 +560,7 @@ async function showSessionDetail(sessionId) {
     showView('history-detail-view');
   } catch (error) {
     console.error('Failed to load session detail:', error);
-    showAlert('세션 상세 정보를 불러올 수 없습니다', 'error');
+    showAlert(t('alerts.sessionLoadFailed'), 'error');
   }
 }
 
@@ -442,7 +644,7 @@ function incrementTime(time, seconds) {
 async function deleteSession() {
   if (!currentDetailSession) return;
 
-  if (!confirm('이 회의 기록을 삭제하시겠습니까?')) return;
+  if (!confirm(t('confirmDelete'))) return;
 
   try {
     const result = await chrome.storage.local.get(STORAGE_KEY);
@@ -455,10 +657,10 @@ async function deleteSession() {
     currentDetailSession = null;
     showView('history-view');
     loadHistory();
-    showAlert('삭제되었습니다', 'success');
+    showAlert(t('alerts.deleted'), 'success');
   } catch (error) {
     console.error('Failed to delete session:', error);
-    showAlert('삭제에 실패했습니다', 'error');
+    showAlert(t('alerts.deleteFailed'), 'error');
   }
 }
 
@@ -492,6 +694,17 @@ function formatTime(date) {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
+}
+
+function formatTimeWithSeconds(date) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function formatFullTimestamp(date) {
+  return `${formatDate(date)} ${formatTimeWithSeconds(date)}`;
 }
 
 function formatFilenameDate(date) {
@@ -537,12 +750,19 @@ detailDownloadTxt.addEventListener('click', downloadSessionAsTxt);
 detailDownloadSrt.addEventListener('click', downloadSessionAsSrt);
 detailDelete.addEventListener('click', deleteSession);
 
+langButtons.forEach(btn => {
+  btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+});
+
 // =============================================================================
 // Initialize
 // =============================================================================
 
 async function init() {
+  startBtn.dataset.state = 'idle';
+  stopBtn.dataset.state = 'idle';
   await restoreGuideState();
+  await loadLanguage();
   updateStatus();
 }
 

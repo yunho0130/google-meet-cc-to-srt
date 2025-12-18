@@ -1,7 +1,7 @@
 {
   "name": "google-meet-transcriber",
-  "version": "3.5.0",
-  "description": "Chrome extension for Google Meet with STT transcription using OpenAI Whisper API",
+  "version": "3.5.1",
+  "description": "Chrome extension for capturing Google Meet closed captions and exporting TXT/SRT",
   "private": true,
   "scripts": {
     "generate-icons": "node scripts/generate-icons.js",

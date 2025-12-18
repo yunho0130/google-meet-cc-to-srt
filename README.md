@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)
+![Version](https://img.shields.io/badge/version-3.5.1-blue.svg)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
 
 **Capture and download Google Meet closed captions in real-time**
@@ -39,11 +39,11 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 - 🔄 **Smart deduplication** to prevent repeated text
 - 📊 **Real-time statistics** (caption count, word count, duration)
 
-### v3.2.0 New Features
+### v3.5.1 Highlights
+- 💾 **Auto-save stability** - Saves every 30s without restarting capture
+- ⏱️ **Countdown clarity** - Auto-save timer counts down from 30s to 1s
+- 🧾 **History list clarity** - Full start timestamp + meeting title in history list
 - 📚 **Meeting History** - Browse, view, download, and delete past recordings
-- 📖 **Quick Guide in Popup** - Easy access guide moved to extension popup
-- 🔄 **Improved Language Toggle** - Shows target language (KO/EN) for clarity
-- 🎨 **Cleaner Overlay** - Removed guide from overlay for simplified UI
 
 ### v3.1.0 Features
 - 🌐 **Multilingual support** - English/Korean with language toggle
@@ -77,11 +77,11 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 
 1. **Download the latest release**
    - Go to [Releases](https://github.com/yunho0130/google-meet-cc-to-srt/releases)
-   - Download `google-meet-cc-capturer-v3.0.0.zip`
+   - Download `google-meet-cc-capturer-v3.5.1.zip`
 
 2. **Extract the ZIP file**
    ```bash
-   unzip google-meet-cc-capturer-v3.0.0.zip
+   unzip google-meet-cc-capturer-v3.5.1.zip
    ```
 
 3. **Load in Chrome**
@@ -93,7 +93,7 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 4. **Verify installation**
    - You should see the extension icon (mint green) in your toolbar
    - Extension name: "Google Meet CC Capturer"
-   - Version: 3.0.0
+   - Version: 3.5.1
 
 ### Method 2: Install from Source
 
@@ -268,8 +268,6 @@ google-meet-cc-capturer/
 │   └── appicon-darkmode_transparent.png
 ├── scripts/
 │   └── generate-icons.js      # Icon generation utility
-├── switch-to-simple.sh        # Switch to CC version
-├── switch-to-api.sh           # Switch to API version (legacy)
 └── CLAUDE.md                  # Complete version history
 ```
 
@@ -308,6 +306,18 @@ That's it! No microphone, no camera, no tracking.
 ---
 
 ## 📊 Version History
+
+### v3.5.1 - Auto-save Countdown & History Clarity
+
+**Changes:**
+- Auto-save countdown now shows remaining seconds (30 → 1)
+- History list shows full start timestamp with meeting title
+
+### v3.5.0 - Capture Stability
+
+**Changes:**
+- Delta-based capture to prevent caption accumulation
+- Auto-save flushes pending text without restarting capture
 
 ### v3.2.0 (2024-12-17) - History & UX Improvements
 
@@ -348,7 +358,6 @@ See [CLAUDE.md](CLAUDE.md) for complete version history.
 - v2.2.0 - Accurate selectors from real HTML
 - v2.1.0 - Console error fixes
 - v2.0.0 - Initial CC Capturer version
-- v1.x - API-based transcription (deprecated)
 
 ---
 
@@ -379,7 +388,7 @@ npm run generate-icons
 ### Create Release Package
 ```bash
 # Create a zip file for distribution
-zip -r google-meet-cc-capturer-v3.0.0.zip \
+zip -r google-meet-cc-capturer-v3.5.1.zip \
   manifest.json \
   content/ \
   popup/ \
@@ -430,7 +439,7 @@ Found a bug or have a suggestion?
 <div align="center">
 
 **Made with Claude Code**
-v3.2.0 • 2024-12-17
+v3.5.1
 
 [⬆ Back to top](#google-meet-cc-capturer)
 

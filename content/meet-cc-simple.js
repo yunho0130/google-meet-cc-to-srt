@@ -1124,11 +1124,13 @@ class SimpleCCCapturer {
     this.autoStarted = false;
     this.includeSpeakerName = true;
     this.speakerSelector = null;
+    this.lastSpeaker = '';
 
     // Debouncing for streaming captions
     this.debounceTimer = null;
     this.lastProcessedText = '';
     this.lastRawText = '';
+    this.lastSpeaker = '';
     this.pendingText = '';
 
     // Timestamp-based filtering (v3.4.0)
@@ -1363,6 +1365,13 @@ class SimpleCCCapturer {
         // Ignore speaker extraction errors
       }
     }
+    if (this.includeSpeakerName) {
+      if (speaker) {
+        this.lastSpeaker = speaker;
+      } else if (this.speakerSelector) {
+        this.lastSpeaker = '';
+      }
+    }
 
     if (textSelector) {
       try {
@@ -1465,6 +1474,7 @@ class SimpleCCCapturer {
 
     this.lastProcessedText = '';
     this.lastRawText = '';
+    this.lastSpeaker = '';
     this.pendingText = '';
     this.lastCaptureTimestamp = Date.now(); // v3.4.0: Initialize timestamp
     if (this.debounceTimer) {
@@ -1583,7 +1593,7 @@ class SimpleCCCapturer {
       this.autoSaveSecondsRemaining--;
 
       if (this.autoSaveSecondsRemaining <= 0) {
-        this.autoSaveSecondsRemaining = 30; // Reset for next cycle
+        this.autoSaveSecondsRemaining = 30; // Reset for next cycle (30 -> 1 countdown)
       }
 
       this.updateAutoSaveUI();
@@ -1613,22 +1623,17 @@ class SimpleCCCapturer {
 
   /**
    * Update auto-save UI (progress bar and timer)
-   * v3.4.0: Progress bar now fills from 0% to 100% (left to right)
+   * Countdown shows remaining seconds (30 -> 1)
    */
   updateAutoSaveUI() {
     const timerEl = document.getElementById('cc-autosave-timer');
     const progressBar = document.getElementById('cc-autosave-progress-bar');
 
     if (timerEl) {
-      // Show elapsed time (how long since last save)
-      const elapsedSeconds = 30 - this.autoSaveSecondsRemaining;
-      timerEl.textContent = `${elapsedSeconds}s`;
+      timerEl.textContent = `${this.autoSaveSecondsRemaining}s`;
     }
 
     if (progressBar) {
-      // v3.4.0: Progress fills from 0% to 100% (left to right)
-      // When autoSaveSecondsRemaining is 30, percentage is 0%
-      // When autoSaveSecondsRemaining is 0, percentage is 100%
       const percentage = ((30 - this.autoSaveSecondsRemaining) / 30) * 100;
       progressBar.style.width = `${percentage}%`;
     }
@@ -1822,6 +1827,7 @@ class SimpleCCCapturer {
         time: this.formatTime(elapsed),
         timestamp: elapsed,
         text: captureText,  // Save only new delta when captions accumulate
+        speaker: this.includeSpeakerName ? this.lastSpeaker : '',
         capturedAt: currentTimestamp
       };
 
@@ -2261,11 +2267,28 @@ class SimpleCCCapturer {
     }
   }
 
+  formatCaptionText(caption) {
+    if (!this.includeSpeakerName) {
+      return caption.text;
+    }
+
+    const speaker = caption.speaker || '';
+    if (!speaker) {
+      return caption.text;
+    }
+
+    const prefix = `[${speaker}] `;
+    if (caption.text.startsWith(prefix)) {
+      return caption.text;
+    }
+    return `${prefix}${caption.text}`;
+  }
+
   generateTXT(captions, includeTimestamps) {
     if (includeTimestamps) {
-      return captions.map(c => `[${c.time}] ${c.text}`).join('\n');
+      return captions.map(c => `[${c.time}] ${this.formatCaptionText(c)}`).join('\n');
     } else {
-      return captions.map(c => c.text).join('\n');
+      return captions.map(c => this.formatCaptionText(c)).join('\n');
     }
   }
 
@@ -2275,7 +2298,7 @@ class SimpleCCCapturer {
       const end = this.formatSRTTime(
         i < captions.length - 1 ? captions[i + 1].timestamp : c.timestamp + 2000
       );
-      return `${i + 1}\n${start} --> ${end}\n${c.text}\n`;
+      return `${i + 1}\n${start} --> ${end}\n${this.formatCaptionText(c)}\n`;
     }).join('\n');
   }
 
