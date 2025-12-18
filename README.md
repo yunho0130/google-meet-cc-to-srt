@@ -8,6 +8,8 @@
 **Capture and download Google Meet closed captions in real-time**
 *No API keys required • Simple & Fast • Privacy-focused*
 
+<img src="assets/images/%E1%84%86%E1%85%A1%E1%84%8F%E1%85%B5%20%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%86%E1%85%A9%E1%84%89%E1%85%A7%E1%86%AB%20%E1%84%90%E1%85%A1%E1%84%8B%E1%85%B5%E1%86%AF%20%201400x560_%E1%84%90%E1%85%AE%E1%84%86%E1%85%A7%E1%86%BC.png" alt="Marquee promotion tile" width="100%">
+
 [Download Latest Release](#installation) • [Features](#features) • [Usage Guide](#usage) • [Documentation](CLAUDE.md)
 
 </div>
@@ -25,6 +27,8 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 - ✅ **Simple & fast** - Just enable CC in Google Meet and start capturing
 - ✅ **Professional quality** - Smart deduplication and text processing
 - ✅ **Highly configurable** - Extensive settings for your workflow
+
+<img src="assets/images/%E1%84%8F%E1%85%A2%E1%86%B8%E1%84%8E%E1%85%A7%E1%84%92%E1%85%AA%E1%84%86%E1%85%A7%E1%86%AB%201280x800_%E1%84%90%E1%85%AE%E1%84%86%E1%85%A7%E1%86%BC.png" alt="Meet capture screenshot" width="100%">
 
 ---
 
@@ -98,6 +102,8 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
    - You should see the extension icon (mint green) in your toolbar
    - Extension name: "Google Meet CC Capturer"
    - Version: 3.5.2
+
+<img src="assets/images/%E1%84%8C%E1%85%A1%E1%86%A8%E1%84%8B%E1%85%B3%E1%86%AB%20%E1%84%91%E1%85%B3%E1%84%85%E1%85%A9%E1%84%86%E1%85%A9%E1%84%89%E1%85%A7%E1%86%AB%20%E1%84%90%E1%85%A1%E1%84%8B%E1%85%B5%E1%86%AF%20440x280.png" alt="Small promotion tile" width="60%">
 
 ### Method 2: Install from Source
 
