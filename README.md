@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-3.5.2-blue.svg)
+![Version](https://img.shields.io/badge/version-3.5.8-blue.svg)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
 
 **Capture and download Google Meet closed captions in real-time**

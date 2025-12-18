@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Google Meet CC Capturer** is a Chrome extension (Manifest V3) that captures Google Meet's built-in closed captions without requiring any API calls.
 
-### Current Version: 3.5.6
+### Current Version: 3.5.8
 
 **Key Features:**
 - **Real-time caption capture** from Google Meet closed captions

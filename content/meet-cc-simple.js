@@ -2,7 +2,7 @@
  * Simple Google Meet CC Capturer
  * No API calls - just capture CC text and download
  *
- * Version 3.5.7 - Overwrite Pattern: Simple & Powerful
+ * Version 3.5.8 - Overwrite Pattern: Simple & Powerful
  *
  * Philosophy (v3.5.7):
  * - OVERWRITE instead of APPEND - eliminates caption overlap
@@ -3242,4 +3242,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-console.log('[CC Capturer] Simple CC Capturer v3.5.7 loaded (Overwrite Pattern - Caption Overlap Fix)');
+console.log('[CC Capturer] Simple CC Capturer v3.5.8 loaded (Overwrite Pattern - Caption Overlap Fix)');
