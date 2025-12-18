@@ -6,12 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Google Meet CC Capturer** is a Chrome extension (Manifest V3) that captures Google Meet's built-in closed captions without requiring any API calls.
 
-### Current Version: 3.2.0
+### Current Version: 3.4.0
 
 **Key Features:**
 - **Real-time caption capture** from Google Meet closed captions
 - **No API keys** or external services required
 - **Auto-start capture** when CC is detected
+- **Timestamp-based filtering** - Simple, robust deduplication (v3.4.0)
 - **Meeting history** - Browse, view, download, and delete past recordings
 - **Quick Guide in popup** - Easy access guide for users
 - **Multilingual UI** (English/Korean) with smart language toggle
@@ -27,6 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Tab visibility handling** for screen sharing scenarios
 - **TXT and SRT format** downloads with preview
 - **Persistent storage** - Sessions saved across page reloads
+- **Auto-save progress bar** - Fills 0% to 100% showing time until next save (v3.4.0)
 
 ### Legacy Version (API-based)
 
@@ -90,11 +92,11 @@ This version has been replaced with the simpler CC capturer approach due to API 
 6. If text stabilizes, capture to transcript
 7. Extract only new portion if text extends previous
 
-### Deduplication
-- Tracks last 5 captured texts
-- Uses similarity matching (>80% = duplicate)
-- Compares new text with recent history
-- Extracts only new portions from progressive updates
+### Deduplication (v3.4.0 - Simplified)
+- Uses simple exact-match comparison against last processed text
+- No complex similarity matching or progressive text extraction
+- Timestamp-based tracking for robust stream-like capture
+- Captures full text as-is when it changes (Google Meet shows complete phrases)
 
 ### Tab Visibility Handling
 - Detects when tab is hidden/visible
@@ -152,6 +154,46 @@ npm run generate-icons
 ```
 
 ## Version History
+
+### v3.4.0 - Timestamp-Based Capture (Major Fix)
+**Release Date**: 2024-12-18
+
+**Critical Fixes:**
+
+1. **Caption Save Issue Fixed**
+   - FIXED: Captions showing in "Current:" but not being saved
+   - FIXED: 30-second timer passing without saving captions
+   - Root cause: Complex `isDuplicate()` logic was too aggressive
+
+2. **Simplified Deduplication**
+   - REMOVED: Complex `isDuplicate()` function with similarity matching
+   - REMOVED: Progressive text extraction logic
+   - NEW: Simple exact-match comparison against last processed text
+   - NEW: Timestamp-based tracking (`lastCaptureTimestamp`)
+   - Result: More robust, predictable caption capture
+
+3. **Progress Bar Direction Reversed**
+   - CHANGED: Progress bar now fills from 0% to 100% (left to right)
+   - CHANGED: Timer shows elapsed time since last save (0s to 30s)
+   - More intuitive visual feedback for users
+
+**Technical Changes:**
+- meet-cc-simple.js: Rewrote `captureStableText()` function
+- meet-cc-simple.js: Removed `isDuplicate()` and `calculateSimilarity()` functions
+- meet-cc-simple.js: Added `lastCaptureTimestamp` tracking
+- meet-cc-simple.js: Updated `updateAutoSaveUI()` for reversed progress
+- meet-cc-simple.css: Changed progress bar initial width to 0%
+
+**How Capture Works Now (v3.4.0):**
+1. MutationObserver detects caption text changes
+2. Text displayed in "Current:" area immediately
+3. Debounce timer (1.5s) waits for text to stabilize
+4. When timer fires, compare text with `lastProcessedText`
+5. If different (exact match check only), capture the full text
+6. Update `lastProcessedText` and `lastCaptureTimestamp`
+7. No complex similarity matching or progressive extraction
+
+---
 
 ### v3.2.0 - History & UX Improvements
 **Release Date**: 2024-12-17

@@ -1,6 +1,6 @@
 /**
  * Simple Popup for CC Capturer
- * Version 3.2.0 - Added Quick Guide and History feature
+ * Version 3.4.4 - Jeff Dean Style: Correctness First
  */
 
 const MessageTypes = {

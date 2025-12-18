@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Google Meet CC Capturer",
-  "version": "3.2.0",
-  "description": "Capture and download Google Meet closed captions in real-time. Features: auto-capture, multilingual UI (EN/KO), meeting history, persistent storage, copy to clipboard, live preview, customizable settings, keyboard shortcuts. No API required!",
+  "version": "3.4.4",
+  "description": "Capture and download Google Meet closed captions in real-time. Features: auto-capture, auto-resume every 30s, ultra-simple reliable capture, extensive logging, progress bar, multilingual UI (EN/KO), meeting history, persistent storage, copy to clipboard, live preview, customizable settings, keyboard shortcuts. No API required!",
 
   "icons": {
     "16": "assets/icons/icon16.png",

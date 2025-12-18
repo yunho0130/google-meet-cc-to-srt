@@ -1,6 +1,10 @@
 /**
  * Simple CC Capturer Styles
- * Version 3.1.0 - Major UX Improvements
+ * Version 3.4.0 - Timestamp-Based Capture
+ *
+ * Changes in 3.4.0:
+ * - Progress bar now fills 0% -> 100% (left to right)
+ * - Timer shows elapsed time since last save
  *
  * Includes:
  * - New UI layout with usage guide, status bar, statistics
@@ -990,4 +994,99 @@
 
 .cc-btn-debug:hover:not(:disabled) {
   background: rgba(255, 193, 7, 0.3);
+}
+
+/* =============================================================================
+   Auto-Save Progress Bar (v3.3.0)
+   ============================================================================= */
+.cc-autosave-progress {
+  position: relative;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  display: none; /* Hidden by default, shown when capturing */
+}
+
+.cc-autosave-progress.active {
+  display: block;
+}
+
+.cc-autosave-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #8ab4f8, #4285f4);
+  width: 0%; /* v3.4.0: Start at 0%, fill to 100% */
+  transition: width 0.1s linear;
+  position: relative;
+}
+
+.cc-autosave-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: cc-shimmer 1.5s infinite;
+}
+
+@keyframes cc-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.cc-autosave-info {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: rgba(50, 51, 54, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.cc-autosave-info.active {
+  display: flex;
+}
+
+.cc-autosave-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cc-autosave-icon {
+  font-size: 12px;
+  animation: cc-pulse 2s infinite;
+}
+
+@keyframes cc-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.cc-autosave-timer {
+  font-weight: 600;
+  color: #8ab4f8;
+  font-family: 'Courier New', monospace;
+}
+
+.cc-autosave-saved {
+  color: #81c995;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.cc-autosave-saved.show {
+  opacity: 1;
 }

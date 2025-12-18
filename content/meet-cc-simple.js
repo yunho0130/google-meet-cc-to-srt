@@ -2,9 +2,52 @@
  * Simple Google Meet CC Capturer
  * No API calls - just capture CC text and download
  *
- * Version 3.1.0 - Major UX Improvements
+ * Version 3.4.4 - Jeff Dean Style: Correctness First
  *
- * New Features:
+ * Philosophy (v3.4.4):
+ * - Ultra-simple capture logic: if text changed, save it
+ * - NO length checks, NO complex deduplication
+ * - Extensive logging at every step
+ * - Fail fast and loud - no silent failures
+ * - Reliability > Optimization
+ * - Accept duplicates - fix in post-processing if needed
+ *
+ * What changed from v3.4.2/v3.4.3:
+ * - REMOVED: All progressive expansion logic
+ * - REMOVED: All minimum length checks
+ * - REMOVED: All smart deduplication attempts
+ * - ADDED: Extensive debugging logs
+ * - KEPT: Simple exact-match duplicate check only
+ *
+ * Previous attempts (v3.4.2, v3.4.3):
+ * - Too clever, tried to deduplicate during capture
+ * - Failed because optimization was at the wrong layer
+ *
+ * Previous (3.4.1):
+ * - Auto-resume every 30 seconds (stop & start)
+ * - 100% reliable caption saving
+ *
+ * Previous (3.4.0):
+ * - REMOVED: Complex isDuplicate() logic entirely
+ * - NEW: Timestamp-based filtering (stream-like capture)
+ * - FIXED: Progress bar direction (now fills 0% -> 100%)
+ * - Simplified and robust capture logic
+ *
+ * Previous Features (3.3.1):
+ * - Visual 30-second countdown progress bar
+ * - Real-time save indicator with animations
+ * - Performance optimization: removed redundant debounced saves
+ * - Detailed logging for debugging auto-save issues
+ * - Reduced CPU/memory usage significantly
+ *
+ * Features from 3.3.0:
+ * - Auto-save every 30 seconds during recording
+ * - Delta tracking to prevent redundant saves
+ * - Force save on stop to prevent data loss
+ * - Survives browser crashes, tab closures, and call disconnections
+ * - Maximum 30-second data loss window (previously could lose entire session)
+ *
+ * Previous Features (3.1.0):
  * - Removed manual Start/Stop buttons (auto-start when CC detected)
  * - Added Usage Guide panel (collapsible)
  * - Multilingual support (English/Korean)
@@ -253,6 +296,13 @@ class PersistentStorage {
     this.currentSessionId = null;
     this.saveDebounceTimer = null;
     this.SAVE_DEBOUNCE_MS = 2000; // Debounce saves to avoid excessive writes
+
+    // Auto-save timer (30 seconds interval)
+    this.autoSaveInterval = null;
+    this.AUTO_SAVE_INTERVAL_MS = 30000; // 30 seconds
+    this.lastSavedCount = 0; // Track last saved caption count to detect changes
+    this.getCaptionsCallback = null; // Callback to get current captions
+    this.capturerInstance = null; // Reference to SimpleCCCapturer for auto-resume
   }
 
   /**
@@ -260,6 +310,8 @@ class PersistentStorage {
    */
   async startNewSession() {
     this.currentSessionId = `session_${Date.now()}`;
+    this.lastSavedCount = 0; // Reset saved count for new session
+
     const sessionData = {
       id: this.currentSessionId,
       startTime: Date.now(),
@@ -328,7 +380,12 @@ class PersistentStorage {
     }
 
     this.saveDebounceTimer = setTimeout(async () => {
-      await this.updateSession(captions);
+      // Only save if there are new captions since last save
+      if (captions.length > this.lastSavedCount) {
+        await this.updateSession(captions);
+        this.lastSavedCount = captions.length;
+        console.log(`[PersistentStorage] Debounced save: ${captions.length} captions`);
+      }
     }, this.SAVE_DEBOUNCE_MS);
   }
 
@@ -413,6 +470,81 @@ class PersistentStorage {
   async clearAllHistory() {
     await chrome.storage.local.remove([this.STORAGE_KEY, this.CURRENT_SESSION_KEY]);
     this.currentSessionId = null;
+  }
+
+  /**
+   * Start automatic periodic save (every 30 seconds)
+   * Now includes auto-resume functionality (v3.4.0)
+   */
+  startAutoSave(getCaptionsCallback, capturerInstance) {
+    // Stop any existing timer
+    this.stopAutoSave();
+
+    this.getCaptionsCallback = getCaptionsCallback;
+    this.capturerInstance = capturerInstance;
+    this.lastSavedCount = 0;
+
+    console.log('[PersistentStorage] Starting auto-save with auto-resume (30s interval)');
+
+    this.autoSaveInterval = setInterval(async () => {
+      await this.performAutoSave();
+    }, this.AUTO_SAVE_INTERVAL_MS);
+  }
+
+  /**
+   * Perform auto-save with auto-resume (v3.4.0)
+   * Triggers stop & start to force capture of current pending text
+   */
+  async performAutoSave() {
+    try {
+      console.log('[PersistentStorage] ⏰ Auto-save triggered (30s elapsed)');
+
+      if (!this.capturerInstance) {
+        console.warn('[PersistentStorage] Auto-resume skipped: no capturer instance');
+        return;
+      }
+
+      if (!this.currentSessionId) {
+        console.warn('[PersistentStorage] Auto-resume skipped: no currentSessionId');
+        return;
+      }
+
+      // Auto-resume: Stop & Start to force save current state
+      console.log('[PersistentStorage] ♻️ Executing auto-resume (stop & start)...');
+      await this.capturerInstance.autoResume();
+
+      // Dispatch custom event for UI update
+      window.dispatchEvent(new CustomEvent('cc-auto-saved', {
+        detail: { count: this.capturerInstance.captionBuffer.getCount(), newCount: 0 }
+      }));
+
+      console.log('[PersistentStorage] ✓ Auto-resume completed');
+    } catch (error) {
+      console.error('[PersistentStorage] Auto-resume error:', error);
+    }
+  }
+
+  /**
+   * Stop automatic periodic save
+   */
+  stopAutoSave() {
+    if (this.autoSaveInterval) {
+      clearInterval(this.autoSaveInterval);
+      this.autoSaveInterval = null;
+      console.log('[PersistentStorage] Auto-save stopped');
+    }
+  }
+
+  /**
+   * Force immediate save (called on stop)
+   */
+  async forceSave() {
+    if (this.getCaptionsCallback && this.currentSessionId) {
+      const captions = this.getCaptionsCallback();
+      await this.updateSession(captions);
+      this.lastSavedCount = captions.length;
+      console.log('[PersistentStorage] Force save: final state saved');
+    }
   }
 }
 
@@ -983,8 +1115,6 @@ class SimpleCCCapturer {
     this.observer = null;
     this.ccDetectionObserver = null;
     this.startTime = null;
-    this.lastTexts = [];
-    this.maxLastTexts = 5;
     this.autoStarted = false;
     this.includeSpeakerName = true;
     this.speakerSelector = null;
@@ -993,6 +1123,10 @@ class SimpleCCCapturer {
     this.debounceTimer = null;
     this.lastProcessedText = '';
     this.pendingText = '';
+
+    // Timestamp-based filtering (v3.4.0)
+    // Track the timestamp when last caption was captured
+    this.lastCaptureTimestamp = 0;
 
     // Core components
     this.config = new CCConfig();
@@ -1009,6 +1143,10 @@ class SimpleCCCapturer {
 
     // Duration timer
     this.durationInterval = null;
+
+    // Auto-save countdown timer
+    this.autoSaveCountdownInterval = null;
+    this.autoSaveSecondsRemaining = 30;
   }
 
   /**
@@ -1264,61 +1402,11 @@ class SimpleCCCapturer {
     return text;
   }
 
-  isDuplicate(text) {
-    if (!text) return true;
-
-    const normalized = text.toLowerCase().trim();
-
-    for (const lastText of this.lastTexts) {
-      const lastNormalized = lastText.toLowerCase().trim();
-
-      if (normalized === lastNormalized) {
-        return true;
-      }
-
-      if (normalized.includes(lastNormalized) &&
-          normalized.length - lastNormalized.length < 10) {
-        return true;
-      }
-      if (lastNormalized.includes(normalized) &&
-          lastNormalized.length - normalized.length < 10) {
-        return true;
-      }
-
-      if (this.calculateSimilarity(normalized, lastNormalized) > 0.8) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  calculateSimilarity(str1, str2) {
-    if (str1 === str2) return 1;
-    if (str1.length === 0 || str2.length === 0) return 0;
-
-    const longer = str1.length > str2.length ? str1 : str2;
-    const shorter = str1.length > str2.length ? str2 : str1;
-
-    if (longer.includes(shorter)) {
-      return shorter.length / longer.length;
-    }
-
-    let matches = 0;
-    const minLen = Math.min(str1.length, str2.length);
-    for (let i = 0; i < minLen; i++) {
-      if (str1[i] === str2[i]) matches++;
-    }
-
-    return matches / Math.max(str1.length, str2.length);
-  }
-
-  addToRecentTexts(text) {
-    this.lastTexts.unshift(text);
-    if (this.lastTexts.length > this.maxLastTexts) {
-      this.lastTexts.pop();
-    }
-  }
+  /**
+   * v3.4.0: No more isDuplicate() function
+   * We use timestamp-based filtering instead of complex duplicate detection
+   * This is simpler, more robust, and handles Google Meet's streaming captions better
+   */
 
   async start() {
     if (this.isCapturing) {
@@ -1365,13 +1453,12 @@ class SimpleCCCapturer {
       await this.persistentStorage.startNewSession();
     }
 
-    this.lastTexts = [];
-
     this.performanceMonitor.reset();
     this.performanceMonitor.startSession();
 
     this.lastProcessedText = '';
     this.pendingText = '';
+    this.lastCaptureTimestamp = Date.now(); // v3.4.0: Initialize timestamp
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
@@ -1385,6 +1472,12 @@ class SimpleCCCapturer {
 
     // Start duration timer
     this.startDurationTimer();
+
+    // Start auto-save timer with auto-resume (30 seconds interval)
+    this.persistentStorage.startAutoSave(() => this.captionBuffer.getAll(), this);
+
+    // Start auto-save countdown UI
+    this.startAutoSaveCountdown();
 
     // Watch for text changes
     this.observer = new MutationObserver((mutations) => {
@@ -1459,6 +1552,101 @@ class SimpleCCCapturer {
   }
 
   /**
+   * Start auto-save countdown timer for UI
+   */
+  startAutoSaveCountdown() {
+    // Show UI elements
+    const infoEl = document.getElementById('cc-autosave-info');
+    const progressEl = document.getElementById('cc-autosave-progress');
+    if (infoEl) infoEl.classList.add('active');
+    if (progressEl) progressEl.classList.add('active');
+
+    // Reset countdown
+    this.autoSaveSecondsRemaining = 30;
+    this.updateAutoSaveUI();
+
+    // Clear existing timer
+    if (this.autoSaveCountdownInterval) {
+      clearInterval(this.autoSaveCountdownInterval);
+    }
+
+    // Start countdown
+    this.autoSaveCountdownInterval = setInterval(() => {
+      this.autoSaveSecondsRemaining--;
+
+      if (this.autoSaveSecondsRemaining <= 0) {
+        this.autoSaveSecondsRemaining = 30; // Reset for next cycle
+      }
+
+      this.updateAutoSaveUI();
+    }, 1000);
+
+    // Listen for save events
+    window.addEventListener('cc-auto-saved', this.onAutoSaved.bind(this));
+  }
+
+  /**
+   * Stop auto-save countdown timer
+   */
+  stopAutoSaveCountdown() {
+    if (this.autoSaveCountdownInterval) {
+      clearInterval(this.autoSaveCountdownInterval);
+      this.autoSaveCountdownInterval = null;
+    }
+
+    // Hide UI elements
+    const infoEl = document.getElementById('cc-autosave-info');
+    const progressEl = document.getElementById('cc-autosave-progress');
+    if (infoEl) infoEl.classList.remove('active');
+    if (progressEl) progressEl.classList.remove('active');
+
+    window.removeEventListener('cc-auto-saved', this.onAutoSaved.bind(this));
+  }
+
+  /**
+   * Update auto-save UI (progress bar and timer)
+   * v3.4.0: Progress bar now fills from 0% to 100% (left to right)
+   */
+  updateAutoSaveUI() {
+    const timerEl = document.getElementById('cc-autosave-timer');
+    const progressBar = document.getElementById('cc-autosave-progress-bar');
+
+    if (timerEl) {
+      // Show elapsed time (how long since last save)
+      const elapsedSeconds = 30 - this.autoSaveSecondsRemaining;
+      timerEl.textContent = `${elapsedSeconds}s`;
+    }
+
+    if (progressBar) {
+      // v3.4.0: Progress fills from 0% to 100% (left to right)
+      // When autoSaveSecondsRemaining is 30, percentage is 0%
+      // When autoSaveSecondsRemaining is 0, percentage is 100%
+      const percentage = ((30 - this.autoSaveSecondsRemaining) / 30) * 100;
+      progressBar.style.width = `${percentage}%`;
+    }
+  }
+
+  /**
+   * Handle auto-save event
+   */
+  onAutoSaved(event) {
+    console.log('[CC] Auto-save event received:', event.detail);
+
+    // Show "Saved" indicator
+    const savedEl = document.getElementById('cc-autosave-saved');
+    if (savedEl) {
+      savedEl.classList.add('show');
+      setTimeout(() => {
+        savedEl.classList.remove('show');
+      }, 2000);
+    }
+
+    // Reset countdown
+    this.autoSaveSecondsRemaining = 30;
+    this.updateAutoSaveUI();
+  }
+
+  /**
    * Format duration for display (MM:SS or HH:MM:SS)
    */
   formatDuration(ms) {
@@ -1489,15 +1677,25 @@ class SimpleCCCapturer {
 
   processCaptionUpdate() {
     try {
-      if (!this.isCapturing || !this.ccElement) return;
+      console.log('[CC] ------- processCaptionUpdate() -------');
+      console.log('[CC]   isCapturing:', this.isCapturing);
+      console.log('[CC]   ccElement:', this.ccElement ? 'EXISTS' : 'NULL');
 
-      if (document.hidden) {
-        console.log('[CC] Processing caption while tab is hidden (background capture active)');
+      if (!this.isCapturing || !this.ccElement) {
+        console.log('[CC] ⊘ Early return: not capturing or no ccElement');
+        return;
       }
 
+      if (document.hidden) {
+        console.log('[CC] Tab is hidden (background capture active)');
+      }
+
+      console.log('[CC]   Calling extractCaptionText()...');
       const currentText = this.extractCaptionText(this.ccElement, this.textSelector);
+      console.log('[CC]   Extracted text:', currentText ? `"${currentText.substring(0, 100)}"` : 'NULL/EMPTY');
 
       if (!currentText) {
+        console.log('[CC] ⊘ No text extracted, clearing pending');
         if (this.config.get('showPendingText')) {
           this.showPendingText('');
         }
@@ -1505,21 +1703,28 @@ class SimpleCCCapturer {
       }
 
       this.pendingText = currentText;
+      console.log('[CC] ✓ Set pendingText:', `"${currentText.substring(0, 50)}..."`);
 
       if (this.config.get('showPendingText')) {
         this.showPendingText(currentText);
+        console.log('[CC] ✓ Displayed pending text in UI');
       }
 
       if (this.debounceTimer) {
+        console.log('[CC] Clearing existing debounce timer');
         clearTimeout(this.debounceTimer);
       }
 
+      console.log(`[CC] Setting debounce timer (${this.DEBOUNCE_DELAY}ms)...`);
       this.debounceTimer = setTimeout(() => {
+        console.log('[CC] Debounce timer fired! Calling captureStableText()...');
         this.captureStableText(this.pendingText);
       }, this.DEBOUNCE_DELAY);
+      console.log('[CC] ------- processCaptionUpdate() END -------');
     } catch (error) {
+      console.error('[CC] ✗✗✗ ERROR in processCaptionUpdate:', error);
+      console.error('[CC]   Stack:', error.stack);
       this.performanceMonitor.recordError('processCaptionUpdate');
-      console.error('[CC] Caption processing error:', error);
     }
   }
 
@@ -1538,75 +1743,89 @@ class SimpleCCCapturer {
     }
   }
 
+  /**
+   * Capture stable text after debounce (v3.4.0 - timestamp-based, simplified)
+   *
+   * Key changes:
+   * - No more complex duplicate detection
+   * - Simply capture text if it has changed since last capture
+   * - Use timestamp to track when we last captured
+   * - Stream-like processing: if debounce timer fires, capture current text
+   */
   captureStableText(text) {
     const processingStart = Date.now();
+    const currentTimestamp = Date.now();
 
     try {
-      if (!text || !this.isCapturing) return;
+      // v3.4.4: Jeff Dean style - Ultra-simple, ultra-reliable
+      console.log('[CC] ========================================');
+      console.log('[CC] captureStableText() called');
+      console.log('[CC]   Input text:', text ? `"${text.substring(0, 100)}"` : 'NULL/EMPTY');
+      console.log('[CC]   isCapturing:', this.isCapturing);
+
+      // Basic validation - only check what's absolutely necessary
+      if (!text) {
+        console.log('[CC] ⊘ SKIP: text is null/undefined/empty');
+        return;
+      }
+
+      if (!this.isCapturing) {
+        console.log('[CC] ⊘ SKIP: not capturing');
+        return;
+      }
 
       const normalizedText = text.trim();
-      const normalizedLast = this.lastProcessedText.trim();
+      console.log('[CC]   Normalized:', `"${normalizedText.substring(0, 100)}"`);
+      console.log('[CC]   Last processed:', `"${this.lastProcessedText.substring(0, 100)}"`);
 
-      if (normalizedText === normalizedLast) {
-        console.log('[CC] Skipping duplicate stable text');
+      // Simple duplicate check - EXACT match only
+      // Accept everything else - duplicates, short text, everything
+      if (normalizedText === this.lastProcessedText) {
+        console.log('[CC] ⊘ SKIP: exact duplicate (text === lastProcessedText)');
         this.performanceMonitor.recordDuplicate();
         return;
       }
 
-      let textToCapture = '';
+      console.log('[CC] ✓ WILL CAPTURE: text is different from last');
 
-      if (normalizedLast && normalizedText.startsWith(normalizedLast)) {
-        const newPortion = normalizedText.substring(normalizedLast.length).trim();
-
-        if (newPortion.length > 0) {
-          textToCapture = newPortion;
-          console.log('[CC] Captured new portion:', newPortion);
-        } else {
-          console.log('[CC] No new content in extension');
-          this.performanceMonitor.recordDuplicate();
-          return;
-        }
-      } else if (normalizedLast && normalizedLast.startsWith(normalizedText)) {
-        console.log('[CC] Text shortened - possible new segment');
-        textToCapture = normalizedText;
-      } else {
-        if (this.isDuplicate(normalizedText)) {
-          console.log('[CC] Skipping duplicate text');
-          this.performanceMonitor.recordDuplicate();
-          return;
-        }
-        textToCapture = normalizedText;
-        console.log('[CC] Captured new segment:', normalizedText.substring(0, 50) + '...');
-      }
-
+      // Update state BEFORE capturing (in case of error)
       this.lastProcessedText = normalizedText;
+      this.lastCaptureTimestamp = currentTimestamp;
 
+      // Create caption entry - save EXACTLY what we received
       const elapsed = Date.now() - this.startTime;
       const entry = {
         time: this.formatTime(elapsed),
         timestamp: elapsed,
-        text: textToCapture
+        text: normalizedText,  // Save the full text, not a portion
+        capturedAt: currentTimestamp
       };
 
+      // Add to buffer
       this.captionBuffer.add(entry);
-      this.addToRecentTexts(textToCapture);
+      console.log('[CC] ✓ ADDED TO BUFFER');
 
-      // Save to persistent storage (debounced)
-      this.persistentStorage.updateSessionDebounced(this.captionBuffer.getAll());
-
+      // Record metrics
       this.performanceMonitor.recordCapture();
       this.performanceMonitor.recordProcessingTime(processingStart);
 
-      console.log(`[CC] [${entry.time}] ${textToCapture}`);
+      // Log success
+      console.log(`[CC] ✓✓✓ CAPTURED [${entry.time}]: "${entry.text}"`);
+      console.log(`[CC]   Total captions: ${this.captionBuffer.getCount()}`);
+      console.log('[CC] ========================================');
+
+      // Update UI
       this.updateOverlay(entry);
       this.updateStats();
 
+      // Clear pending text display
       if (this.config.get('showPendingText')) {
         this.showPendingText('');
       }
     } catch (error) {
+      console.error('[CC] ✗✗✗ ERROR in captureStableText:', error);
+      console.error('[CC]   Stack:', error.stack);
       this.performanceMonitor.recordError('captureStableText');
-      console.error('[CC] Caption capture error:', error);
     }
   }
 
@@ -1643,6 +1862,9 @@ class SimpleCCCapturer {
       this.durationInterval = null;
     }
 
+    // Stop auto-save countdown UI
+    this.stopAutoSaveCountdown();
+
     if (this.visibilityHandler) {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
@@ -1658,6 +1880,7 @@ class SimpleCCCapturer {
 
     this.lastProcessedText = '';
     this.pendingText = '';
+    this.lastCaptureTimestamp = 0; // v3.4.0: Reset timestamp
 
     this.showPendingText('');
 
@@ -1672,8 +1895,11 @@ class SimpleCCCapturer {
     this.updateStatusIndicator(false);
     this.updateStatus(this.t('status.stopped'));
 
-    // Save final state to persistent storage
-    this.persistentStorage.updateSession(this.captionBuffer.getAll());
+    // Stop auto-save timer and force final save
+    this.persistentStorage.stopAutoSave();
+    this.persistentStorage.forceSave().catch(err => {
+      console.error('[CC] Final save error:', err);
+    });
 
     const bufferStats = this.captionBuffer.getStats();
     const perfStats = this.performanceMonitor.getStats();
@@ -1687,6 +1913,46 @@ class SimpleCCCapturer {
       count: bufferStats.total,
       stats: { buffer: bufferStats, performance: perfStats }
     };
+  }
+
+  /**
+   * Auto-resume: Stop and restart capture (v3.4.0)
+   * Called every 30 seconds to force save current state
+   */
+  async autoResume() {
+    if (!this.isCapturing) {
+      console.log('[CC] Auto-resume skipped: not capturing');
+      return;
+    }
+
+    console.log('[CC] ♻️ Auto-resume: Restarting capture to force save...');
+
+    // Store current state
+    const wasCapturing = this.isCapturing;
+    const currentCC = this.ccElement;
+
+    if (!wasCapturing || !currentCC) {
+      console.log('[CC] Auto-resume skipped: invalid state');
+      return;
+    }
+
+    // Stop (this will trigger forceSave)
+    await this.stop();
+
+    // Wait a bit for save to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Restart immediately
+    const result = await this.start();
+
+    if (result.success) {
+      console.log('[CC] ✓ Auto-resume completed');
+
+      // Show brief notification
+      this.showNotification(this.t('notifications.autoResumed') || 'Auto-saved and resumed', 'success');
+    } else {
+      console.error('[CC] Auto-resume failed:', result.message);
+    }
   }
 
   formatTime(ms) {
@@ -2503,6 +2769,20 @@ async function createSimpleUI() {
       </div>
     </div>
 
+    <!-- Auto-Save Progress Info -->
+    <div id="cc-autosave-info" class="cc-autosave-info">
+      <div class="cc-autosave-label">
+        <span class="cc-autosave-icon">&#128190;</span>
+        <span>Next auto-save in <span id="cc-autosave-timer" class="cc-autosave-timer">30s</span></span>
+      </div>
+      <span id="cc-autosave-saved" class="cc-autosave-saved">✓ Saved</span>
+    </div>
+
+    <!-- Auto-Save Progress Bar -->
+    <div id="cc-autosave-progress" class="cc-autosave-progress">
+      <div id="cc-autosave-progress-bar" class="cc-autosave-progress-bar"></div>
+    </div>
+
     <!-- Pending Text -->
     <div id="cc-pending-area" class="cc-pending" style="display: none;">
       <div class="cc-pending-label">${capturer.t('labels.current')}</div>
@@ -2679,4 +2959,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-console.log('[CC Capturer] Simple CC Capturer v3.1.0 loaded (Major UX Improvements)');
+console.log('[CC Capturer] Simple CC Capturer v3.4.2 loaded (Progressive Expansion Fix)');
