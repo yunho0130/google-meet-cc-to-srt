@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-3.5.1-blue.svg)
+![Version](https://img.shields.io/badge/version-3.5.2-blue.svg)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
 
 **Capture and download Google Meet closed captions in real-time**
@@ -38,6 +38,10 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 - 🎤 **Speaker name detection** (optional)
 - 🔄 **Smart deduplication** to prevent repeated text
 - 📊 **Real-time statistics** (caption count, word count, duration)
+
+### v3.5.2 Highlights
+- 🌐 **Popup language toggle** - EN/KO switch in popup and history views
+- 🗣️ **Speaker labels** - Include speaker names in TXT/SRT/Copy output
 
 ### v3.5.1 Highlights
 - 💾 **Auto-save stability** - Saves every 30s without restarting capture
@@ -77,11 +81,11 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 
 1. **Download the latest release**
    - Go to [Releases](https://github.com/yunho0130/google-meet-cc-to-srt/releases)
-   - Download `google-meet-cc-capturer-v3.5.1.zip`
+   - Download `google-meet-cc-capturer-v3.5.2.zip`
 
 2. **Extract the ZIP file**
    ```bash
-   unzip google-meet-cc-capturer-v3.5.1.zip
+   unzip google-meet-cc-capturer-v3.5.2.zip
    ```
 
 3. **Load in Chrome**
@@ -93,7 +97,7 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 4. **Verify installation**
    - You should see the extension icon (mint green) in your toolbar
    - Extension name: "Google Meet CC Capturer"
-   - Version: 3.5.1
+   - Version: 3.5.2
 
 ### Method 2: Install from Source
 
@@ -307,6 +311,12 @@ That's it! No microphone, no camera, no tracking.
 
 ## 📊 Version History
 
+### v3.5.2 - Popup Language Toggle & Speaker Labels
+
+**Changes:**
+- Popup + history EN/KO toggle
+- Speaker labels included in TXT/SRT/clipboard output
+
 ### v3.5.1 - Auto-save Countdown & History Clarity
 
 **Changes:**
@@ -388,7 +398,7 @@ npm run generate-icons
 ### Create Release Package
 ```bash
 # Create a zip file for distribution
-zip -r google-meet-cc-capturer-v3.5.1.zip \
+zip -r google-meet-cc-capturer-v3.5.2.zip \
   manifest.json \
   content/ \
   popup/ \
@@ -439,7 +449,7 @@ Found a bug or have a suggestion?
 <div align="center">
 
 **Made with Claude Code**
-v3.5.1
+v3.5.2
 
 [⬆ Back to top](#google-meet-cc-capturer)
 
