@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
 
 **Capture and download Google Meet closed captions in real-time**
@@ -39,7 +39,13 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 - 🔄 **Smart deduplication** to prevent repeated text
 - 📊 **Real-time statistics** (caption count, word count, duration)
 
-### v3.1.0 New Features
+### v3.2.0 New Features
+- 📚 **Meeting History** - Browse, view, download, and delete past recordings
+- 📖 **Quick Guide in Popup** - Easy access guide moved to extension popup
+- 🔄 **Improved Language Toggle** - Shows target language (KO/EN) for clarity
+- 🎨 **Cleaner Overlay** - Removed guide from overlay for simplified UI
+
+### v3.1.0 Features
 - 🌐 **Multilingual support** - English/Korean with language toggle
 - 📋 **Copy to clipboard** - One-click copy with Ctrl+Shift+C
 - 💾 **Persistent storage** - Recordings saved even if tab closes
@@ -303,6 +309,23 @@ That's it! No microphone, no camera, no tracking.
 
 ## 📊 Version History
 
+### v3.2.0 (2024-12-17) - History & UX Improvements
+
+**New Features:**
+- Meeting history feature in popup (browse, view, download, delete)
+- Quick Guide moved to popup for easier access
+- Language toggle shows target language for clarity
+- Cleaner overlay UI
+
+### v3.1.0 (2024-12-17) - Multilingual & Auto-capture
+
+**New Features:**
+- Multilingual UI (English/Korean)
+- Copy to clipboard with keyboard shortcut
+- Persistent storage across page reloads
+- Auto-start capture when CC detected
+- Usage guide panel
+
 ### v3.0.0 (2024-12-17) - Major Rebuild 🎉
 
 **Complete overhaul** with focus on usability and reliability.
@@ -407,7 +430,7 @@ Found a bug or have a suggestion?
 <div align="center">
 
 **Made with Claude Code**
-v3.1.0 • 2024-12-17
+v3.2.0 • 2024-12-17
 
 [⬆ Back to top](#google-meet-cc-capturer)
 

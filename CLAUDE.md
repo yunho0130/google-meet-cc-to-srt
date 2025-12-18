@@ -6,12 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Google Meet CC Capturer** is a Chrome extension (Manifest V3) that captures Google Meet's built-in closed captions without requiring any API calls.
 
-### Current Version: 3.0.0
+### Current Version: 3.2.0
 
 **Key Features:**
 - **Real-time caption capture** from Google Meet closed captions
 - **No API keys** or external services required
 - **Auto-start capture** when CC is detected
+- **Meeting history** - Browse, view, download, and delete past recordings
+- **Quick Guide in popup** - Easy access guide for users
+- **Multilingual UI** (English/Korean) with smart language toggle
 - **Live preview** with pending text display
 - **Download preview** with file statistics and format selection
 - **Comprehensive settings** panel for customization
@@ -23,6 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Speaker name detection** and inclusion
 - **Tab visibility handling** for screen sharing scenarios
 - **TXT and SRT format** downloads with preview
+- **Persistent storage** - Sessions saved across page reloads
 
 ### Legacy Version (API-based)
 
@@ -54,9 +58,10 @@ This version has been replaced with the simpler CC capturer approach due to API 
    - Responsive design
 
 3. **Popup** (`popup/popup-simple.html`, `popup/popup-simple.js`)
-   - Simple control interface
-   - Status display
-   - Download triggers
+   - Quick Guide section (collapsible)
+   - Meeting history feature (list, detail, download, delete)
+   - Status display and capture controls
+   - Download triggers (TXT/SRT)
 
 4. **Manifest** (`manifest.json`)
    - Minimal permissions (storage, activeTab)
@@ -147,6 +152,69 @@ npm run generate-icons
 ```
 
 ## Version History
+
+### v3.2.0 - History & UX Improvements
+**Release Date**: 2024-12-17
+
+**New Features:**
+
+1. **Meeting History in Popup**
+   - Browse all past meeting recordings
+   - View session details (title, date, time, caption count)
+   - Preview caption content
+   - Download individual sessions as TXT or SRT
+   - Delete sessions
+
+2. **Quick Guide Moved to Popup**
+   - Removed from overlay for cleaner UI
+   - Collapsible guide section in popup
+   - Includes keyboard shortcuts reference
+
+3. **Improved Language Toggle**
+   - Now shows target language (KO when in English, EN when in Korean)
+   - More intuitive for users
+   - Tooltip shows full language name
+
+**Technical Changes:**
+- popup-simple.html: Added multi-view architecture (main, history list, history detail)
+- popup-simple.js: Added history management, session loading, download/delete functions
+- meet-cc-simple.js: Removed Quick Guide from overlay, fixed language toggle logic
+
+---
+
+### v3.1.0 - Multilingual & Auto-capture
+**Release Date**: 2024-12-17
+
+**New Features:**
+
+1. **Multilingual Support**
+   - Full English and Korean UI
+   - Language toggle button in overlay header
+   - All text elements localized
+   - Language preference saved to storage
+
+2. **Copy to Clipboard**
+   - One-click copy button
+   - Keyboard shortcut: Ctrl+Shift+C
+   - Toast notification on success
+
+3. **Persistent Storage**
+   - Auto-save captions to chrome.storage.local
+   - Session restoration on page reload
+   - Debounced saves to prevent excessive writes
+
+4. **Usage Guide Panel**
+   - Collapsible guide section in overlay
+   - Quick start instructions
+   - Keyboard shortcuts reference
+   - Guide state saved to storage
+
+5. **Auto-capture Mode**
+   - Removed manual Start/Stop buttons
+   - Automatic capture when CC detected
+   - Simplified user experience
+
+---
 
 ### v3.0.0 - Major Rebuild 🎉
 **Release Date**: 2024-12-17
