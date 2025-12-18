@@ -2,15 +2,15 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-3.5.8-blue.svg)
-![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
-
 **Capture and download Google Meet closed captions in real-time**
 *No API keys required • Simple & Fast • Privacy-focused*
 
 <img src="assets/images/marquee-promo-1400x560.png" alt="Marquee promotion tile" width="100%">
 
 [Download Latest Release](#installation) • [Features](#features) • [Usage Guide](#usage) • [Documentation](CLAUDE.md)
+
+![Version](https://img.shields.io/badge/version-3.5.8-blue.svg)
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
 
 </div>
 
