@@ -2,77 +2,56 @@
  * Simple Google Meet CC Capturer
  * No API calls - just capture CC text and download
  *
- * Version 3.4.4 - Jeff Dean Style: Correctness First
+ * Version 3.5.7 - Overwrite Pattern: Simple & Powerful
  *
- * Philosophy (v3.4.4):
- * - Ultra-simple capture logic: if text changed, save it
- * - NO length checks, NO complex deduplication
- * - Extensive logging at every step
- * - Fail fast and loud - no silent failures
- * - Reliability > Optimization
- * - Accept duplicates - fix in post-processing if needed
+ * Philosophy (v3.5.7):
+ * - OVERWRITE instead of APPEND - eliminates caption overlap
+ * - Current = volatile buffer (always latest text)
+ * - History = permanent storage (saved every 30s)
+ * - No accumulation, no complex deduplication
+ * - Simple exact-match duplicate check only
  *
- * What changed from v3.4.2/v3.4.3:
- * - REMOVED: All progressive expansion logic
- * - REMOVED: All minimum length checks
- * - REMOVED: All smart deduplication attempts
- * - ADDED: Extensive debugging logs
- * - KEPT: Simple exact-match duplicate check only
+ * What changed from v3.5.6:
+ * - REMOVED: accumulatedChunkText, previousChunkSpeaker variables
+ * - REMOVED: Complex speaker change detection logic
+ * - REMOVED: Progressive text extraction
+ * - SIMPLIFIED: currentChunkText always overwrites (never appends)
+ * - ADDED: Exception handling for non-Meet pages (no console spam)
+ * - RESULT: Caption overlap issue completely eliminated
  *
- * Previous attempts (v3.4.2, v3.4.3):
- * - Too clever, tried to deduplicate during capture
- * - Failed because optimization was at the wrong layer
+ * Previous (v3.5.6):
+ * - Multi-speaker support with text accumulation
+ * - Complex speaker change detection
+ * - Had caption overlap issues due to accumulation
  *
- * Previous (3.4.1):
- * - Auto-resume every 30 seconds (stop & start)
- * - 100% reliable caption saving
+ * Previous (v3.5.5):
+ * - Incremental save with prefix matching
+ * - Still had overlap issues
  *
- * Previous (3.4.0):
- * - REMOVED: Complex isDuplicate() logic entirely
- * - NEW: Timestamp-based filtering (stream-like capture)
- * - FIXED: Progress bar direction (now fills 0% -> 100%)
- * - Simplified and robust capture logic
+ * Previous (v3.5.0):
+ * - Auto-save without restarting capture
+ * - Delta-based processing
  *
- * Previous Features (3.3.1):
- * - Visual 30-second countdown progress bar
- * - Real-time save indicator with animations
- * - Performance optimization: removed redundant debounced saves
- * - Detailed logging for debugging auto-save issues
- * - Reduced CPU/memory usage significantly
+ * Previous (v3.4.4):
+ * - Jeff Dean style: correctness first
+ * - Extensive logging
  *
- * Features from 3.3.0:
- * - Auto-save every 30 seconds during recording
- * - Delta tracking to prevent redundant saves
- * - Force save on stop to prevent data loss
- * - Survives browser crashes, tab closures, and call disconnections
- * - Maximum 30-second data loss window (previously could lose entire session)
+ * Previous (v3.4.0):
+ * - Timestamp-based filtering
+ * - Progress bar direction fixed
  *
- * Previous Features (3.1.0):
- * - Removed manual Start/Stop buttons (auto-start when CC detected)
- * - Added Usage Guide panel (collapsible)
+ * Core Features:
+ * - Real-time CC capture from Google Meet
+ * - Auto-save every 30 seconds (no capture interruption)
  * - Multilingual support (English/Korean)
- * - Copy to clipboard button with Ctrl+Shift+C shortcut
- * - Persistent storage with chrome.storage.local (auto-save sessions)
- * - Session restore on page reload
- * - Improved UI layout with status bar and statistics
- *
- * Phase 4: Enhanced Download Features
- * - Download preview modal with statistics
- * - Format selection (TXT/SRT) with live preview
- * - Customizable filename and timestamp options
- * - File size estimation before download
- * - Keyboard shortcuts (Ctrl+Shift+D for download)
- * - Modal system with overlay, close on ESC, click outside to close
- *
- * Phase 2: Memory Management & Performance
- * - CaptionBuffer: Circular buffer prevents memory leaks in long meetings
- * - SelectorManager: Priority-based selector management with caching
- * - PerformanceMonitor: Track capture rate, duplicates, errors
- * - Comprehensive error handling with user-friendly notifications
- *
- * Phase 1: Core Architecture
- * - Configuration system for user preferences
- * - Toast notification system for better feedback
+ * - Download as TXT or SRT
+ * - Copy to clipboard (Ctrl+Shift+C)
+ * - Meeting history management
+ * - Persistent storage across sessions
+ * - Memory management (circular buffer)
+ * - Performance monitoring
+ * - Configurable settings
+ * - Keyboard shortcuts
  */
 
 // Message Types
@@ -1134,14 +1113,14 @@ class SimpleCCCapturer {
 
     // Debouncing for streaming captions
     this.debounceTimer = null;
-    this.lastProcessedText = '';
-    this.lastRawText = '';
     this.lastSpeaker = '';
     this.pendingText = '';
 
-    // Timestamp-based filtering (v3.4.0)
-    // Track the timestamp when last caption was captured
-    this.lastCaptureTimestamp = 0;
+    // v3.5.7: Overwrite pattern - simple and powerful
+    // currentPendingText: always overwrite with latest (for UI display)
+    // lastSavedText: track what was last saved to prevent duplicates
+    this.currentPendingText = '';
+    this.lastSavedText = '';
 
     // Core components
     this.config = new CCConfig();
@@ -1163,21 +1142,13 @@ class SimpleCCCapturer {
     this.autoSaveCountdownInterval = null;
     this.autoSaveSecondsRemaining = 30;
 
-    // v3.5.3: Chunk-based capture (30-second chunks)
-    // Instead of saving each caption individually, accumulate text for 30 seconds
-    // then save as a single chunk with timestamp and speaker
+    // v3.5.7: Simplified chunk tracking - no accumulation
+    // currentChunkText: always overwrite (not accumulate)
+    // currentChunkSpeaker: current speaker for this chunk
+    // chunkStartTime: when current chunk started
     this.currentChunkText = '';
     this.currentChunkSpeaker = '';
     this.chunkStartTime = 0;
-
-    // v3.5.5: Track last saved text for incremental saving
-    // Only save NEW text (text after lastSavedText) at each 30-second interval
-    this.lastSavedText = '';
-
-    // v3.5.6: Track speaker changes for multi-speaker support
-    // When speaker changes, accumulate previous speaker's text instead of overwriting
-    this.previousChunkSpeaker = '';
-    this.accumulatedChunkText = '';
   }
 
   /**
@@ -1494,18 +1465,15 @@ class SimpleCCCapturer {
     this.performanceMonitor.reset();
     this.performanceMonitor.startSession();
 
-    this.lastProcessedText = '';
-    this.lastRawText = '';
+    // v3.5.7: Reset state for overwrite pattern
     this.lastSpeaker = '';
     this.pendingText = '';
-    this.lastCaptureTimestamp = Date.now(); // v3.4.0: Initialize timestamp
-    // v3.5.5: Reset saved text tracker
+    this.currentPendingText = '';
     this.lastSavedText = '';
     this.currentChunkText = '';
     this.currentChunkSpeaker = '';
-    // v3.5.6: Reset multi-speaker tracking
-    this.previousChunkSpeaker = '';
-    this.accumulatedChunkText = '';
+    this.chunkStartTime = 0;
+
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
@@ -1803,21 +1771,20 @@ class SimpleCCCapturer {
   }
 
   /**
-   * Capture stable text after debounce (v3.5.6 - multi-speaker support)
+   * Capture stable text after debounce (v3.5.7 - overwrite pattern)
    *
-   * Key changes (v3.5.6):
-   * - Detects speaker changes and accumulates text instead of overwriting
-   * - When speaker changes: save previous speaker's text, start new chunk
-   * - When same speaker: overwrite (Google Meet streams partial sentences)
-   * - Format: [00:00:30] [Speaker1] text1 [Speaker2] text2...
+   * Key changes (v3.5.7):
+   * - ALWAYS overwrite currentChunkText (no accumulation, no appending)
+   * - Only save to captionBuffer when 30-second timer fires
+   * - Eliminates caption overlap completely
+   * - Philosophy: Current = volatile buffer, History = permanent storage
    */
   captureStableText(text) {
     const processingStart = Date.now();
-    const currentTimestamp = Date.now();
 
     try {
       console.log('[CC] ========================================');
-      console.log('[CC] captureStableText() called (v3.5.6 multi-speaker mode)');
+      console.log('[CC] captureStableText() called (v3.5.7 overwrite mode)');
       console.log('[CC]   Input text:', text ? `"${text.substring(0, 100)}"` : 'NULL/EMPTY');
       console.log('[CC]   isCapturing:', this.isCapturing);
 
@@ -1836,51 +1803,20 @@ class SimpleCCCapturer {
       const currentSpeaker = this.includeSpeakerName ? this.lastSpeaker : '';
 
       console.log('[CC]   Normalized:', `"${normalizedText.substring(0, 100)}"`);
-      console.log('[CC]   Last processed:', `"${this.lastProcessedText.substring(0, 100)}"`);
+      console.log('[CC]   Last saved:', `"${this.lastSavedText.substring(0, 100)}"`);
       console.log('[CC]   Current speaker:', currentSpeaker || '(none)');
-      console.log('[CC]   Previous speaker:', this.previousChunkSpeaker || '(none)');
 
-      // Simple duplicate check - EXACT match only
-      if (normalizedText === this.lastProcessedText) {
-        console.log('[CC] ⊘ SKIP: exact duplicate');
+      // Skip if exact duplicate of last saved text
+      if (normalizedText === this.lastSavedText) {
+        console.log('[CC] ⊘ SKIP: exact duplicate of last saved');
         this.performanceMonitor.recordDuplicate();
         return;
       }
 
-      // v3.5.6: Detect speaker change
-      const speakerChanged = this.previousChunkSpeaker !== '' &&
-                             currentSpeaker !== '' &&
-                             this.previousChunkSpeaker !== currentSpeaker;
-
-      if (speakerChanged) {
-        // Speaker changed! Save previous speaker's text to accumulated
-        console.log(`[CC] ★ SPEAKER CHANGED: ${this.previousChunkSpeaker} → ${currentSpeaker}`);
-
-        if (this.currentChunkText) {
-          // Append previous chunk to accumulated text
-          if (this.accumulatedChunkText) {
-            this.accumulatedChunkText += ' ' + this.currentChunkText;
-          } else {
-            this.accumulatedChunkText = this.currentChunkText;
-          }
-          console.log(`[CC]   Accumulated: "${this.accumulatedChunkText.substring(0, 80)}..."`);
-        }
-
-        // Start fresh with new speaker's text
-        this.currentChunkText = normalizedText;
-        this.currentChunkSpeaker = currentSpeaker;
-        console.log(`[CC] ✓ NEW SPEAKER CHUNK: "${normalizedText.substring(0, 50)}..."`);
-      } else {
-        // Same speaker - overwrite mode (Google Meet streams partial sentences)
-        this.currentChunkText = normalizedText;
-        this.currentChunkSpeaker = currentSpeaker;
-        console.log(`[CC] ✓ CHUNK REPLACED: "${normalizedText.substring(0, 50)}..."`);
-      }
-
-      // Update previous speaker for next comparison
-      if (currentSpeaker) {
-        this.previousChunkSpeaker = currentSpeaker;
-      }
+      // v3.5.7: ALWAYS OVERWRITE (never append, never accumulate)
+      this.currentChunkText = normalizedText;
+      this.currentChunkSpeaker = currentSpeaker;
+      console.log(`[CC] ✓ CHUNK OVERWRITTEN: "${normalizedText.substring(0, 50)}..."`);
 
       // Initialize chunk start time if not set
       if (this.chunkStartTime === 0) {
@@ -1889,11 +1825,6 @@ class SimpleCCCapturer {
 
       console.log(`[CC]   Chunk speaker: ${this.currentChunkSpeaker}`);
       console.log(`[CC]   Chunk start time: ${this.formatTime(this.chunkStartTime)}`);
-
-      // Update state
-      this.lastProcessedText = normalizedText;
-      this.lastRawText = normalizedText;
-      this.lastCaptureTimestamp = currentTimestamp;
 
       // Record metrics
       this.performanceMonitor.recordCapture();
@@ -1904,12 +1835,9 @@ class SimpleCCCapturer {
       // Update stats
       this.updateStats();
 
-      // v3.5.6: Show accumulated + current text in pending area
+      // Show current text in pending area (always latest, no accumulation)
       if (this.config.get('showPendingText')) {
-        const fullText = this.accumulatedChunkText
-          ? this.accumulatedChunkText + ' ' + normalizedText
-          : normalizedText;
-        this.showPendingText(fullText);
+        this.showPendingText(this.currentChunkText);
       }
     } catch (error) {
       console.error('[CC] ✗✗✗ ERROR in captureStableText:', error);
@@ -1934,21 +1862,16 @@ class SimpleCCCapturer {
   }
 
   /**
-   * v3.5.6: Flush current chunk to buffer with timestamp and speaker
+   * v3.5.7: Flush current chunk to buffer with timestamp and speaker
    * Called every 30 seconds by auto-save
-   * Format: [00:00:30] [Speaker1] text1 [Speaker2] text2...
    *
    * KEY CHANGES:
-   * - v3.5.5: Only saves NEW text that wasn't saved before
-   * - v3.5.6: Combines accumulatedChunkText + currentChunkText for multi-speaker support
+   * - v3.5.7: Simplified - just save currentChunkText if it's new
+   * - No accumulation logic, no prefix extraction
+   * - Overwrite pattern means currentChunkText is always the latest
    */
   flushChunkToBuffer() {
-    // v3.5.6: Combine accumulated + current for full text
-    const fullChunkText = this.accumulatedChunkText
-      ? this.accumulatedChunkText + ' ' + this.currentChunkText
-      : this.currentChunkText;
-
-    if (!fullChunkText || !fullChunkText.trim()) {
+    if (!this.currentChunkText || !this.currentChunkText.trim()) {
       console.log('[CC] flushChunkToBuffer: No chunk text to save');
       return false;
     }
@@ -1957,41 +1880,25 @@ class SimpleCCCapturer {
     const timestamp = this.formatTime(elapsed);
 
     console.log('[CC] ========================================');
-    console.log('[CC] flushChunkToBuffer() - v3.5.6 Multi-Speaker Save');
+    console.log('[CC] flushChunkToBuffer() - v3.5.7 Overwrite Save');
     console.log(`[CC]   Timestamp: ${timestamp}`);
-    console.log(`[CC]   Accumulated: "${this.accumulatedChunkText?.substring(0, 50) || '(none)'}..."`);
-    console.log(`[CC]   Current: "${this.currentChunkText?.substring(0, 50) || '(none)'}..."`);
-    console.log(`[CC]   Full chunk: "${fullChunkText.substring(0, 80)}..."`);
+    console.log(`[CC]   Current chunk: "${this.currentChunkText.substring(0, 80)}..."`);
     console.log(`[CC]   Last saved: "${this.lastSavedText?.substring(0, 80) || '(none)'}..."`);
 
-    // v3.5.5: Extract only NEW text (not previously saved)
-    let newText = fullChunkText;
-
-    if (this.lastSavedText && fullChunkText.startsWith(this.lastSavedText)) {
-      // Current text starts with previously saved text - extract only the new part
-      newText = fullChunkText.substring(this.lastSavedText.length).trim();
-      console.log(`[CC]   Extracted new text: "${newText.substring(0, 80)}..."`);
-    } else if (this.lastSavedText) {
-      // Text doesn't start with lastSavedText - might be a new sentence or speaker change
-      // In this case, save the full current text
-      console.log('[CC]   Text structure changed, saving full chunk');
-    }
-
-    // Skip if no new text to save
-    if (!newText || newText.trim() === '') {
-      console.log('[CC] ⊘ SKIP: No new text to save');
+    // Skip if exact duplicate of last saved text
+    if (this.currentChunkText === this.lastSavedText) {
+      console.log('[CC] ⊘ SKIP: Exact duplicate of last saved');
       console.log('[CC] ========================================');
       return false;
     }
 
-    console.log(`[CC]   New text length: ${newText.length} chars`);
+    console.log(`[CC]   Chunk text length: ${this.currentChunkText.length} chars`);
 
-    // Create caption entry with the NEW text only
-    // Note: speaker field is for the last speaker; text already contains [Speaker] tags
+    // Create caption entry
     const entry = {
       time: timestamp,
       timestamp: elapsed,
-      text: newText,
+      text: this.currentChunkText,
       speaker: this.currentChunkSpeaker,
       capturedAt: Date.now(),
       isChunk: true
@@ -1999,7 +1906,7 @@ class SimpleCCCapturer {
 
     // Add to buffer
     this.captionBuffer.add(entry);
-    console.log('[CC] ✓ NEW TEXT SAVED TO BUFFER');
+    console.log('[CC] ✓ CHUNK SAVED TO BUFFER');
     console.log(`[CC]   Total entries: ${this.captionBuffer.getCount()}`);
     console.log('[CC] ========================================');
 
@@ -2007,17 +1914,11 @@ class SimpleCCCapturer {
     this.updateOverlay(entry);
     this.updateStats();
 
-    // v3.5.5: Update lastSavedText to current full text (for next comparison)
-    this.lastSavedText = fullChunkText;
-
-    // v3.5.6: Reset accumulated text (already saved)
-    this.accumulatedChunkText = '';
-
-    // DO NOT reset currentChunkText - keep for next increment comparison
-    // Only reset chunk timing for next 30-second period
+    // v3.5.7: Update lastSavedText and reset chunk for next 30-second period
+    this.lastSavedText = this.currentChunkText;
+    this.currentChunkText = '';
+    this.currentChunkSpeaker = '';
     this.chunkStartTime = Date.now() - this.startTime;
-
-    // DO NOT reset lastProcessedText - allow continuous capture without duplicates
 
     return true;
   }
@@ -2077,19 +1978,13 @@ class SimpleCCCapturer {
       this.flushChunkToBuffer();
     }
 
-    this.lastProcessedText = '';
-    this.lastRawText = '';
+    // v3.5.7: Reset state for overwrite pattern
     this.pendingText = '';
-    this.lastCaptureTimestamp = 0; // v3.4.0: Reset timestamp
-    // v3.5.3: Reset chunk state
+    this.currentPendingText = '';
     this.currentChunkText = '';
     this.currentChunkSpeaker = '';
     this.chunkStartTime = 0;
-    // v3.5.5: Reset saved text tracker
     this.lastSavedText = '';
-    // v3.5.6: Reset multi-speaker tracking
-    this.previousChunkSpeaker = '';
-    this.accumulatedChunkText = '';
 
     this.showPendingText('');
 
@@ -3180,16 +3075,33 @@ async function createSimpleUI() {
   // Start auto-detection after delay
   console.log('[CC] UI created, will start auto-detection after Google Meet fully initializes...');
   setTimeout(() => {
-    console.log('[CC] Starting auto-detection now...');
-    capturer.startAutoDetection();
+    try {
+      console.log('[CC] Starting auto-detection now...');
+      capturer.startAutoDetection();
+    } catch (error) {
+      // v3.5.7: Silently ignore errors when Google Meet is not running
+      // This prevents console spam on non-Meet pages
+      console.debug('[CC] Auto-detection skipped (not on Google Meet page)');
+    }
   }, MEET_INIT_DELAY);
 }
 
 // Initialize when page loads
+// v3.5.7: Wrap in try-catch to prevent errors on non-Meet pages
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', createSimpleUI);
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      createSimpleUI();
+    } catch (error) {
+      console.debug('[CC] Initialization skipped (not on Google Meet page)');
+    }
+  });
 } else {
-  createSimpleUI();
+  try {
+    createSimpleUI();
+  } catch (error) {
+    console.debug('[CC] Initialization skipped (not on Google Meet page)');
+  }
 }
 
 // Handle messages from popup/background
@@ -3216,4 +3128,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-console.log('[CC Capturer] Simple CC Capturer v3.4.2 loaded (Progressive Expansion Fix)');
+console.log('[CC Capturer] Simple CC Capturer v3.5.7 loaded (Overwrite Pattern - Caption Overlap Fix)');
