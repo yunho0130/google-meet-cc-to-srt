@@ -302,7 +302,7 @@ class PersistentStorage {
     this.AUTO_SAVE_INTERVAL_MS = 30000; // 30 seconds
     this.lastSavedCount = 0; // Track last saved caption count to detect changes
     this.getCaptionsCallback = null; // Callback to get current captions
-    this.capturerInstance = null; // Reference to SimpleCCCapturer for auto-resume
+    this.capturerInstance = null; // Reference to SimpleCCCapturer for auto-save flush
   }
 
   /**
@@ -474,7 +474,6 @@ class PersistentStorage {
 
   /**
    * Start automatic periodic save (every 30 seconds)
-   * Now includes auto-resume functionality (v3.4.0)
    */
   startAutoSave(getCaptionsCallback, capturerInstance) {
     // Stop any existing timer
@@ -484,7 +483,7 @@ class PersistentStorage {
     this.capturerInstance = capturerInstance;
     this.lastSavedCount = 0;
 
-    console.log('[PersistentStorage] Starting auto-save with auto-resume (30s interval)');
+    console.log('[PersistentStorage] Starting auto-save (30s interval)');
 
     this.autoSaveInterval = setInterval(async () => {
       await this.performAutoSave();
@@ -492,35 +491,42 @@ class PersistentStorage {
   }
 
   /**
-   * Perform auto-save with auto-resume (v3.4.0)
-   * Triggers stop & start to force capture of current pending text
+   * Perform auto-save without restarting capture
    */
   async performAutoSave() {
     try {
       console.log('[PersistentStorage] ⏰ Auto-save triggered (30s elapsed)');
 
       if (!this.capturerInstance) {
-        console.warn('[PersistentStorage] Auto-resume skipped: no capturer instance');
+        console.warn('[PersistentStorage] Auto-save skipped: no capturer instance');
         return;
       }
 
       if (!this.currentSessionId) {
-        console.warn('[PersistentStorage] Auto-resume skipped: no currentSessionId');
+        console.warn('[PersistentStorage] Auto-save skipped: no currentSessionId');
         return;
       }
 
-      // Auto-resume: Stop & Start to force save current state
-      console.log('[PersistentStorage] ♻️ Executing auto-resume (stop & start)...');
-      await this.capturerInstance.autoResume();
+      // Flush any pending caption text without restarting capture
+      this.capturerInstance.flushPendingText();
+
+      if (this.getCaptionsCallback) {
+        const captions = this.getCaptionsCallback();
+        if (captions.length > this.lastSavedCount) {
+          await this.updateSession(captions);
+          this.lastSavedCount = captions.length;
+          console.log('[PersistentStorage] Session updated via auto-save');
+        }
+      }
 
       // Dispatch custom event for UI update
       window.dispatchEvent(new CustomEvent('cc-auto-saved', {
         detail: { count: this.capturerInstance.captionBuffer.getCount(), newCount: 0 }
       }));
 
-      console.log('[PersistentStorage] ✓ Auto-resume completed');
+      console.log('[PersistentStorage] ✓ Auto-save completed');
     } catch (error) {
-      console.error('[PersistentStorage] Auto-resume error:', error);
+      console.error('[PersistentStorage] Auto-save error:', error);
     }
   }
 
@@ -1122,6 +1128,7 @@ class SimpleCCCapturer {
     // Debouncing for streaming captions
     this.debounceTimer = null;
     this.lastProcessedText = '';
+    this.lastRawText = '';
     this.pendingText = '';
 
     // Timestamp-based filtering (v3.4.0)
@@ -1457,6 +1464,7 @@ class SimpleCCCapturer {
     this.performanceMonitor.startSession();
 
     this.lastProcessedText = '';
+    this.lastRawText = '';
     this.pendingText = '';
     this.lastCaptureTimestamp = Date.now(); // v3.4.0: Initialize timestamp
     if (this.debounceTimer) {
@@ -1473,7 +1481,7 @@ class SimpleCCCapturer {
     // Start duration timer
     this.startDurationTimer();
 
-    // Start auto-save timer with auto-resume (30 seconds interval)
+    // Start auto-save timer (30 seconds interval)
     this.persistentStorage.startAutoSave(() => this.captionBuffer.getAll(), this);
 
     // Start auto-save countdown UI
@@ -1778,18 +1786,34 @@ class SimpleCCCapturer {
       console.log('[CC]   Normalized:', `"${normalizedText.substring(0, 100)}"`);
       console.log('[CC]   Last processed:', `"${this.lastProcessedText.substring(0, 100)}"`);
 
-      // Simple duplicate check - EXACT match only
-      // Accept everything else - duplicates, short text, everything
-      if (normalizedText === this.lastProcessedText) {
-        console.log('[CC] ⊘ SKIP: exact duplicate (text === lastProcessedText)');
+      let captureText = normalizedText;
+      let captureType = 'full';
+
+      if (this.lastRawText && normalizedText.startsWith(this.lastRawText)) {
+        const delta = normalizedText.slice(this.lastRawText.length).trim();
+        if (!delta) {
+          console.log('[CC] ⊘ SKIP: no new delta (text startsWith lastRawText)');
+          this.lastRawText = normalizedText;
+          this.performanceMonitor.recordDuplicate();
+          return;
+        }
+        captureText = delta;
+        captureType = 'append';
+      }
+
+      // Simple duplicate check - EXACT match only on capture text
+      if (captureText === this.lastProcessedText) {
+        console.log('[CC] ⊘ SKIP: exact duplicate (captureText === lastProcessedText)');
+        this.lastRawText = normalizedText;
         this.performanceMonitor.recordDuplicate();
         return;
       }
 
-      console.log('[CC] ✓ WILL CAPTURE: text is different from last');
+      console.log(`[CC] ✓ WILL CAPTURE: ${captureType}`);
 
       // Update state BEFORE capturing (in case of error)
-      this.lastProcessedText = normalizedText;
+      this.lastProcessedText = captureText;
+      this.lastRawText = normalizedText;
       this.lastCaptureTimestamp = currentTimestamp;
 
       // Create caption entry - save EXACTLY what we received
@@ -1797,7 +1821,7 @@ class SimpleCCCapturer {
       const entry = {
         time: this.formatTime(elapsed),
         timestamp: elapsed,
-        text: normalizedText,  // Save the full text, not a portion
+        text: captureText,  // Save only new delta when captions accumulate
         capturedAt: currentTimestamp
       };
 
@@ -1826,6 +1850,20 @@ class SimpleCCCapturer {
       console.error('[CC] ✗✗✗ ERROR in captureStableText:', error);
       console.error('[CC]   Stack:', error.stack);
       this.performanceMonitor.recordError('captureStableText');
+    }
+  }
+
+  /**
+   * Flush pending text without restarting capture (auto-save helper)
+   */
+  flushPendingText() {
+    if (!this.isCapturing) {
+      return;
+    }
+
+    if (this.pendingText) {
+      console.log('[CC] Flushing pending text for auto-save');
+      this.captureStableText(this.pendingText);
     }
   }
 
@@ -1879,6 +1917,7 @@ class SimpleCCCapturer {
     }
 
     this.lastProcessedText = '';
+    this.lastRawText = '';
     this.pendingText = '';
     this.lastCaptureTimestamp = 0; // v3.4.0: Reset timestamp
 

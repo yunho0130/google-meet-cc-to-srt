@@ -1,6 +1,6 @@
 {
   "name": "google-meet-transcriber",
-  "version": "1.0.0",
+  "version": "3.5.0",
   "description": "Chrome extension for Google Meet with STT transcription using OpenAI Whisper API",
   "private": true,
   "scripts": {
