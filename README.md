@@ -103,8 +103,6 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
    - Extension name: "Google Meet CC Capturer"
    - Version: 3.5.2
 
-<img src="assets/images/promo-tile-440x280.png" alt="Small promotion tile" width="60%">
-
 ### Method 2: Install from Source
 
 ```bash
@@ -127,19 +125,7 @@ cd google-meet-cc-to-srt
 
 ### Interface Overview
 
-```
-┌─────────────────────────────────────────┐
-│ CC Capture         [Start] [Stop] [Settings] [Help] │
-├─────────────────────────────────────────┤
-│ Status: Recording...  📝 5  💬 124  ⏱️ 00:42 │
-├─────────────────────────────────────────┤
-│ Current: This is being captured...      │
-├─────────────────────────────────────────┤
-│ [00:00:12] First completed caption      │
-│ [00:00:28] Second completed caption     │
-│ [00:00:35] Third completed caption      │
-└─────────────────────────────────────────┘
-```
+<img src="assets/images/promo-tile-440x280.png" alt="Small promotion tile" width="60%">
 
 ### Download Captions
 
