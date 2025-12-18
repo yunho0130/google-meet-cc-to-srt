@@ -247,12 +247,7 @@ const UI_TEXT_PATTERNS = [
   /통화\s*종료/,
   /하단으로\s*이동/,
   /상단으로\s*이동/,
-  /마이크/,
-  /카메라/,
   /화면\s*공유/,
-  /채팅/,
-  /참여자/,
-  /더보기/,
   // Mixed icon+text patterns
   /person_add.*참여자/,
   /close.*다가/,
@@ -263,6 +258,14 @@ const UI_TEXT_PATTERNS = [
   /^공유$/,
   /^복사$/,
   /^참여$/
+];
+
+const UI_TEXT_SHORT_PATTERNS = [
+  /^마이크$/,
+  /^카메라$/,
+  /^채팅$/,
+  /^참여자$/,
+  /^더보기$/
 ];
 
 // =============================================================================
@@ -1289,6 +1292,16 @@ class SimpleCCCapturer {
       if (pattern.test(trimmed)) {
         console.log('[CC] Filtered out UI text:', trimmed);
         return true;
+      }
+    }
+
+    const isShortLabel = trimmed.length <= 8 && !/\s/.test(trimmed);
+    if (isShortLabel) {
+      for (const pattern of UI_TEXT_SHORT_PATTERNS) {
+        if (pattern.test(trimmed)) {
+          console.log('[CC] Filtered out UI text:', trimmed);
+          return true;
+        }
       }
     }
 
