@@ -1173,6 +1173,11 @@ class SimpleCCCapturer {
     // v3.5.5: Track last saved text for incremental saving
     // Only save NEW text (text after lastSavedText) at each 30-second interval
     this.lastSavedText = '';
+
+    // v3.5.6: Track speaker changes for multi-speaker support
+    // When speaker changes, accumulate previous speaker's text instead of overwriting
+    this.previousChunkSpeaker = '';
+    this.accumulatedChunkText = '';
   }
 
   /**
@@ -1498,6 +1503,9 @@ class SimpleCCCapturer {
     this.lastSavedText = '';
     this.currentChunkText = '';
     this.currentChunkSpeaker = '';
+    // v3.5.6: Reset multi-speaker tracking
+    this.previousChunkSpeaker = '';
+    this.accumulatedChunkText = '';
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
@@ -1795,13 +1803,13 @@ class SimpleCCCapturer {
   }
 
   /**
-   * Capture stable text after debounce (v3.5.4 - chunk-based capture with immediate display)
+   * Capture stable text after debounce (v3.5.6 - multi-speaker support)
    *
-   * Key changes (v3.5.4):
-   * - Text REPLACES (not accumulates) currentChunkText - overwrite mode
-   * - Immediately displayed in Current area (not cleared)
-   * - Every 30 seconds, the chunk is saved with timestamp and speaker
-   * - Format: [00:00:30] [Speaker] text...
+   * Key changes (v3.5.6):
+   * - Detects speaker changes and accumulates text instead of overwriting
+   * - When speaker changes: save previous speaker's text, start new chunk
+   * - When same speaker: overwrite (Google Meet streams partial sentences)
+   * - Format: [00:00:30] [Speaker1] text1 [Speaker2] text2...
    */
   captureStableText(text) {
     const processingStart = Date.now();
@@ -1809,7 +1817,7 @@ class SimpleCCCapturer {
 
     try {
       console.log('[CC] ========================================');
-      console.log('[CC] captureStableText() called (v3.5.4 overwrite mode)');
+      console.log('[CC] captureStableText() called (v3.5.6 multi-speaker mode)');
       console.log('[CC]   Input text:', text ? `"${text.substring(0, 100)}"` : 'NULL/EMPTY');
       console.log('[CC]   isCapturing:', this.isCapturing);
 
@@ -1825,8 +1833,12 @@ class SimpleCCCapturer {
       }
 
       const normalizedText = text.trim();
+      const currentSpeaker = this.includeSpeakerName ? this.lastSpeaker : '';
+
       console.log('[CC]   Normalized:', `"${normalizedText.substring(0, 100)}"`);
       console.log('[CC]   Last processed:', `"${this.lastProcessedText.substring(0, 100)}"`);
+      console.log('[CC]   Current speaker:', currentSpeaker || '(none)');
+      console.log('[CC]   Previous speaker:', this.previousChunkSpeaker || '(none)');
 
       // Simple duplicate check - EXACT match only
       if (normalizedText === this.lastProcessedText) {
@@ -1835,17 +1847,46 @@ class SimpleCCCapturer {
         return;
       }
 
-      // v3.5.4: REPLACE (not accumulate) chunk content with new text
-      // This is overwrite mode - each new caption replaces the previous one
-      this.currentChunkText = normalizedText;
-      this.currentChunkSpeaker = this.includeSpeakerName ? this.lastSpeaker : '';
+      // v3.5.6: Detect speaker change
+      const speakerChanged = this.previousChunkSpeaker !== '' &&
+                             currentSpeaker !== '' &&
+                             this.previousChunkSpeaker !== currentSpeaker;
+
+      if (speakerChanged) {
+        // Speaker changed! Save previous speaker's text to accumulated
+        console.log(`[CC] ★ SPEAKER CHANGED: ${this.previousChunkSpeaker} → ${currentSpeaker}`);
+
+        if (this.currentChunkText) {
+          // Append previous chunk to accumulated text
+          if (this.accumulatedChunkText) {
+            this.accumulatedChunkText += ' ' + this.currentChunkText;
+          } else {
+            this.accumulatedChunkText = this.currentChunkText;
+          }
+          console.log(`[CC]   Accumulated: "${this.accumulatedChunkText.substring(0, 80)}..."`);
+        }
+
+        // Start fresh with new speaker's text
+        this.currentChunkText = normalizedText;
+        this.currentChunkSpeaker = currentSpeaker;
+        console.log(`[CC] ✓ NEW SPEAKER CHUNK: "${normalizedText.substring(0, 50)}..."`);
+      } else {
+        // Same speaker - overwrite mode (Google Meet streams partial sentences)
+        this.currentChunkText = normalizedText;
+        this.currentChunkSpeaker = currentSpeaker;
+        console.log(`[CC] ✓ CHUNK REPLACED: "${normalizedText.substring(0, 50)}..."`);
+      }
+
+      // Update previous speaker for next comparison
+      if (currentSpeaker) {
+        this.previousChunkSpeaker = currentSpeaker;
+      }
 
       // Initialize chunk start time if not set
       if (this.chunkStartTime === 0) {
         this.chunkStartTime = Date.now() - this.startTime;
       }
 
-      console.log(`[CC] ✓ CHUNK REPLACED: "${normalizedText.substring(0, 50)}..."`);
       console.log(`[CC]   Chunk speaker: ${this.currentChunkSpeaker}`);
       console.log(`[CC]   Chunk start time: ${this.formatTime(this.chunkStartTime)}`);
 
@@ -1863,13 +1904,12 @@ class SimpleCCCapturer {
       // Update stats
       this.updateStats();
 
-      // v3.5.4: Keep showing current chunk in pending area (don't clear)
-      // The Current area shows the live text that will be saved at 30s mark
+      // v3.5.6: Show accumulated + current text in pending area
       if (this.config.get('showPendingText')) {
-        const displayText = this.currentChunkSpeaker
-          ? `[${this.currentChunkSpeaker}] ${normalizedText}`
+        const fullText = this.accumulatedChunkText
+          ? this.accumulatedChunkText + ' ' + normalizedText
           : normalizedText;
-        this.showPendingText(displayText);
+        this.showPendingText(fullText);
       }
     } catch (error) {
       console.error('[CC] ✗✗✗ ERROR in captureStableText:', error);
@@ -1894,17 +1934,21 @@ class SimpleCCCapturer {
   }
 
   /**
-   * v3.5.5: Flush current chunk to buffer with timestamp and speaker
+   * v3.5.6: Flush current chunk to buffer with timestamp and speaker
    * Called every 30 seconds by auto-save
-   * Format: [00:00:30] [Speaker] text...
+   * Format: [00:00:30] [Speaker1] text1 [Speaker2] text2...
    *
-   * KEY CHANGE (v3.5.5): Only saves NEW text that wasn't saved before
-   * - Compares currentChunkText with lastSavedText
-   * - Extracts only the new portion
-   * - Prevents duplicate content across 30-second intervals
+   * KEY CHANGES:
+   * - v3.5.5: Only saves NEW text that wasn't saved before
+   * - v3.5.6: Combines accumulatedChunkText + currentChunkText for multi-speaker support
    */
   flushChunkToBuffer() {
-    if (!this.currentChunkText) {
+    // v3.5.6: Combine accumulated + current for full text
+    const fullChunkText = this.accumulatedChunkText
+      ? this.accumulatedChunkText + ' ' + this.currentChunkText
+      : this.currentChunkText;
+
+    if (!fullChunkText || !fullChunkText.trim()) {
       console.log('[CC] flushChunkToBuffer: No chunk text to save');
       return false;
     }
@@ -1913,18 +1957,19 @@ class SimpleCCCapturer {
     const timestamp = this.formatTime(elapsed);
 
     console.log('[CC] ========================================');
-    console.log('[CC] flushChunkToBuffer() - v3.5.5 Incremental Save');
+    console.log('[CC] flushChunkToBuffer() - v3.5.6 Multi-Speaker Save');
     console.log(`[CC]   Timestamp: ${timestamp}`);
-    console.log(`[CC]   Speaker: ${this.currentChunkSpeaker || '(none)'}`);
-    console.log(`[CC]   Current chunk: "${this.currentChunkText.substring(0, 80)}..."`);
-    console.log(`[CC]   Last saved: "${this.lastSavedText.substring(0, 80)}..."`);
+    console.log(`[CC]   Accumulated: "${this.accumulatedChunkText?.substring(0, 50) || '(none)'}..."`);
+    console.log(`[CC]   Current: "${this.currentChunkText?.substring(0, 50) || '(none)'}..."`);
+    console.log(`[CC]   Full chunk: "${fullChunkText.substring(0, 80)}..."`);
+    console.log(`[CC]   Last saved: "${this.lastSavedText?.substring(0, 80) || '(none)'}..."`);
 
     // v3.5.5: Extract only NEW text (not previously saved)
-    let newText = this.currentChunkText;
+    let newText = fullChunkText;
 
-    if (this.lastSavedText && this.currentChunkText.startsWith(this.lastSavedText)) {
+    if (this.lastSavedText && fullChunkText.startsWith(this.lastSavedText)) {
       // Current text starts with previously saved text - extract only the new part
-      newText = this.currentChunkText.substring(this.lastSavedText.length).trim();
+      newText = fullChunkText.substring(this.lastSavedText.length).trim();
       console.log(`[CC]   Extracted new text: "${newText.substring(0, 80)}..."`);
     } else if (this.lastSavedText) {
       // Text doesn't start with lastSavedText - might be a new sentence or speaker change
@@ -1939,11 +1984,10 @@ class SimpleCCCapturer {
       return false;
     }
 
-    const speakerPrefix = this.currentChunkSpeaker ? `[${this.currentChunkSpeaker}] ` : '';
-
     console.log(`[CC]   New text length: ${newText.length} chars`);
 
     // Create caption entry with the NEW text only
+    // Note: speaker field is for the last speaker; text already contains [Speaker] tags
     const entry = {
       time: timestamp,
       timestamp: elapsed,
@@ -1964,9 +2008,12 @@ class SimpleCCCapturer {
     this.updateStats();
 
     // v3.5.5: Update lastSavedText to current full text (for next comparison)
-    this.lastSavedText = this.currentChunkText;
+    this.lastSavedText = fullChunkText;
 
-    // DO NOT reset currentChunkText - keep accumulating
+    // v3.5.6: Reset accumulated text (already saved)
+    this.accumulatedChunkText = '';
+
+    // DO NOT reset currentChunkText - keep for next increment comparison
     // Only reset chunk timing for next 30-second period
     this.chunkStartTime = Date.now() - this.startTime;
 
@@ -2040,6 +2087,9 @@ class SimpleCCCapturer {
     this.chunkStartTime = 0;
     // v3.5.5: Reset saved text tracker
     this.lastSavedText = '';
+    // v3.5.6: Reset multi-speaker tracking
+    this.previousChunkSpeaker = '';
+    this.accumulatedChunkText = '';
 
     this.showPendingText('');
 

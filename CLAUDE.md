@@ -6,12 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Google Meet CC Capturer** is a Chrome extension (Manifest V3) that captures Google Meet's built-in closed captions without requiring any API calls.
 
-### Current Version: 3.5.5
+### Current Version: 3.5.6
 
 **Key Features:**
 - **Real-time caption capture** from Google Meet closed captions
 - **No API keys** or external services required
 - **Auto-start capture** when CC is detected
+- **Multi-speaker support** - Tracks speaker changes within 30s intervals (v3.5.6)
 - **Incremental saving** - Only new text saved at each 30s interval (v3.5.5)
 - **Timestamp-based filtering** - Simple, robust deduplication (v3.4.0)
 - **Meeting history** - Browse, view, download, and delete past recordings
@@ -155,6 +156,30 @@ npm run generate-icons
 ```
 
 ## Version History
+
+### v3.5.6 - Multi-Speaker Support
+**Release Date**: 2024-12-18
+
+**Problem Solved:**
+- When multiple speakers talked within a 30-second interval, only the last speaker's text was saved
+- Previous speaker's text was overwritten due to "overwrite mode"
+
+**Solution:**
+- Track `previousChunkSpeaker` to detect speaker changes
+- When speaker changes: accumulate previous text instead of overwriting
+- When same speaker: continue overwrite mode (for Google Meet's streaming captions)
+- Result: All speakers' text is preserved:
+  ```
+  [00:00:30] [Speaker1] Hello everyone. [Speaker2] Nice to meet you.
+  ```
+
+**Technical Changes:**
+- Added `previousChunkSpeaker` and `accumulatedChunkText` variables
+- Modified `captureStableText()` to accumulate on speaker change
+- Updated `flushChunkToBuffer()` to combine accumulated + current text
+- Reset new variables on start/stop
+
+---
 
 ### v3.5.5 - Incremental Save (Duplicate Fix)
 **Release Date**: 2024-12-18
