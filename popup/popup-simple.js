@@ -44,7 +44,8 @@ const LANGUAGES = {
       history: '회의 히스토리',
       detailDownloadTxt: 'TXT 다운로드',
       detailDownloadSrt: 'SRT 다운로드',
-      delete: '삭제'
+      delete: '삭제',
+      clearHistory: '전체 삭제'
     },
     alerts: {
       captureStarted: '캡처를 시작했습니다',
@@ -59,9 +60,12 @@ const LANGUAGES = {
       historyLoadFailed: '히스토리를 불러올 수 없습니다',
       historyEmpty: '저장된 회의가 없습니다',
       deleted: '삭제되었습니다',
-      deleteFailed: '삭제에 실패했습니다'
+      deleteFailed: '삭제에 실패했습니다',
+      historyCleared: '히스토리를 삭제했습니다',
+      historyClearFailed: '히스토리 삭제에 실패했습니다'
     },
     confirmDelete: '이 회의 기록을 삭제하시겠습니까?',
+    confirmClearHistory: '모든 회의 기록을 삭제하시겠습니까?',
     errors: {
       noMeetTab: 'Google Meet 탭이 활성화되어 있지 않습니다'
     },
@@ -98,7 +102,8 @@ const LANGUAGES = {
       history: 'Meeting History',
       detailDownloadTxt: 'Download TXT',
       detailDownloadSrt: 'Download SRT',
-      delete: 'Delete'
+      delete: 'Delete',
+      clearHistory: 'Clear All'
     },
     alerts: {
       captureStarted: 'Capture started',
@@ -113,9 +118,12 @@ const LANGUAGES = {
       historyLoadFailed: 'Failed to load history',
       historyEmpty: 'No saved meetings',
       deleted: 'Deleted',
-      deleteFailed: 'Failed to delete'
+      deleteFailed: 'Failed to delete',
+      historyCleared: 'History cleared',
+      historyClearFailed: 'Failed to clear history'
     },
     confirmDelete: 'Delete this meeting record?',
+    confirmClearHistory: 'Delete all meeting history?',
     errors: {
       noMeetTab: 'No active Google Meet tab.'
     },
@@ -173,6 +181,7 @@ const detailContent = document.getElementById('detail-content');
 const detailDownloadTxt = document.getElementById('detail-download-txt');
 const detailDownloadSrt = document.getElementById('detail-download-srt');
 const detailDelete = document.getElementById('detail-delete');
+const historyClear = document.getElementById('history-clear');
 
 // State
 let updateInterval = null;
@@ -196,6 +205,7 @@ function updateButtonLabels() {
   detailDownloadTxt.textContent = t('buttons.detailDownloadTxt');
   detailDownloadSrt.textContent = t('buttons.detailDownloadSrt');
   detailDelete.textContent = t('buttons.delete');
+  if (historyClear) historyClear.textContent = t('buttons.clearHistory');
 }
 
 function applyLanguage() {
@@ -664,6 +674,21 @@ async function deleteSession() {
   }
 }
 
+async function clearHistory() {
+  if (!confirm(t('confirmClearHistory'))) {
+    return;
+  }
+
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEY]: {} });
+    showAlert(t('alerts.historyCleared'), 'success');
+    await loadHistory();
+  } catch (error) {
+    console.error('Failed to clear history:', error);
+    showAlert(t('alerts.historyClearFailed'), 'error');
+  }
+}
+
 /**
  * Download file helper
  */
@@ -749,6 +774,7 @@ backFromDetail.addEventListener('click', () => {
 detailDownloadTxt.addEventListener('click', downloadSessionAsTxt);
 detailDownloadSrt.addEventListener('click', downloadSessionAsSrt);
 detailDelete.addEventListener('click', deleteSession);
+historyClear?.addEventListener('click', clearHistory);
 
 langButtons.forEach(btn => {
   btn.addEventListener('click', () => setLanguage(btn.dataset.lang));

@@ -58,8 +58,15 @@
       right: 0;
     }
 
-    .history-header .lang-toggle {
+    .history-actions {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history-header .lang-toggle {
+      margin-left: 0;
     }
 
     .lang-btn {
@@ -338,6 +345,22 @@
       font-weight: 600;
     }
 
+    .btn-clear-history {
+      background: rgba(242, 139, 130, 0.12);
+      color: #f28b82;
+      border: 1px solid rgba(242, 139, 130, 0.2);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.2s, border 0.2s;
+    }
+
+    .btn-clear-history:hover {
+      background: rgba(242, 139, 130, 0.2);
+      border-color: rgba(242, 139, 130, 0.3);
+    }
+
     .history-list {
       max-height: 400px;
       overflow-y: auto;
@@ -569,9 +592,12 @@
     <div class="history-header">
       <button class="btn-back" id="back-from-history">&larr;</button>
       <span class="history-title" id="history-title">회의 히스토리</span>
-      <div class="lang-toggle" data-lang-toggle>
-        <button class="lang-btn" data-lang="ko">KO</button>
-        <button class="lang-btn" data-lang="en">EN</button>
+      <div class="history-actions">
+        <button id="history-clear" class="btn-clear-history">전체 삭제</button>
+        <div class="lang-toggle" data-lang-toggle>
+          <button class="lang-btn" data-lang="ko">KO</button>
+          <button class="lang-btn" data-lang="en">EN</button>
+        </div>
       </div>
     </div>
     <div class="history-list" id="history-list">
@@ -584,9 +610,11 @@
     <div class="history-header">
       <button class="btn-back" id="back-from-detail">&larr;</button>
       <span class="history-title" id="detail-title">회의 상세</span>
-      <div class="lang-toggle" data-lang-toggle>
-        <button class="lang-btn" data-lang="ko">KO</button>
-        <button class="lang-btn" data-lang="en">EN</button>
+      <div class="history-actions">
+        <div class="lang-toggle" data-lang-toggle>
+          <button class="lang-btn" data-lang="ko">KO</button>
+          <button class="lang-btn" data-lang="en">EN</button>
+        </div>
       </div>
     </div>
     <div class="history-detail-info">

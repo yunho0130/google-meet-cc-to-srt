@@ -562,6 +562,7 @@ class CCConfig {
       // UI settings
       overlayPosition: 'bottom-right',
       overlayMinimized: false,
+      overlayMinimizedPos: null,
       showStatistics: true,
       guideCollapsed: false,
       language: 'en', // Default language
@@ -1152,6 +1153,8 @@ class SimpleCCCapturer {
     this.currentChunkText = '';
     this.currentChunkSpeaker = '';
     this.chunkStartTime = 0;
+
+    this.statusState = 'waiting';
   }
 
   /**
@@ -1210,11 +1213,12 @@ class SimpleCCCapturer {
     // Update status text
     const statusText = document.getElementById('cc-status-text');
     if (statusText) {
-      if (this.isCapturing) {
-        statusText.textContent = this.t('status.capturing');
-      } else {
-        statusText.textContent = this.t('status.waiting');
-      }
+      const statusMap = {
+        recording: this.t('status.capturing'),
+        stopped: this.t('status.stopped'),
+        waiting: this.t('status.waiting')
+      };
+      statusText.textContent = statusMap[this.statusState] || this.t('status.waiting');
     }
 
     // Update pending label
@@ -1239,6 +1243,8 @@ class SimpleCCCapturer {
       langToggle.textContent = targetLang;
       langToggle.title = this.currentLanguage === 'en' ? '한국어로 전환' : 'Switch to English';
     }
+
+    this.updateMinimizedStatus();
   }
 
   /**
@@ -1496,7 +1502,7 @@ class SimpleCCCapturer {
 
     // Update UI status
     this.updateStatusIndicator(true);
-    this.updateStatus(this.t('status.capturing'));
+    this.updateStatus(this.t('status.capturing'), 'recording');
 
     // Start duration timer
     this.startDurationTimer();
@@ -1898,20 +1904,20 @@ class SimpleCCCapturer {
     console.log(`[CC]   Current chunk: "${this.currentChunkText.substring(0, 80)}..."`);
     console.log(`[CC]   Last saved: "${this.lastSavedText?.substring(0, 80) || '(none)'}..."`);
 
-    // Skip if exact duplicate of last saved text
-    if (this.currentChunkText === this.lastSavedText) {
-      console.log('[CC] ⊘ SKIP: Exact duplicate of last saved');
+    const newText = this.getNewChunkText(this.currentChunkText, this.lastSavedText);
+    if (!newText) {
+      console.log('[CC] ⊘ SKIP: No new text after de-duplication');
       console.log('[CC] ========================================');
       return false;
     }
 
-    console.log(`[CC]   Chunk text length: ${this.currentChunkText.length} chars`);
+    console.log(`[CC]   Chunk text length: ${newText.length} chars`);
 
     // Create caption entry
     const entry = {
       time: timestamp,
       timestamp: elapsed,
-      text: this.currentChunkText,
+      text: newText,
       speaker: this.currentChunkSpeaker,
       capturedAt: Date.now(),
       isChunk: true
@@ -2010,7 +2016,7 @@ class SimpleCCCapturer {
     this.selectorManager.reset();
 
     this.updateStatusIndicator(false);
-    this.updateStatus(this.t('status.stopped'));
+    this.updateStatus(this.t('status.stopped'), 'stopped');
 
     // Stop auto-save timer and force final save
     this.persistentStorage.stopAutoSave();
@@ -2730,9 +2736,56 @@ class SimpleCCCapturer {
     }
   }
 
-  updateStatus(text) {
+  updateStatus(text, state) {
+    if (state) {
+      this.statusState = state;
+    }
+
     const status = document.getElementById('cc-status-text');
     if (status) status.textContent = text;
+
+    this.updateMinimizedStatus();
+  }
+
+  updateMinimizedStatus() {
+    const minimized = document.getElementById('cc-minimized');
+    if (!minimized) return;
+
+    const textEl = minimized.querySelector('.cc-mini-text');
+    const statusMap = {
+      recording: this.t('status.capturing'),
+      stopped: this.t('status.stopped'),
+      waiting: this.t('status.waiting')
+    };
+    const label = statusMap[this.statusState] || this.t('status.waiting');
+
+    minimized.classList.remove('cc-mini-recording', 'cc-mini-stopped', 'cc-mini-waiting');
+    minimized.classList.add(`cc-mini-${this.statusState}`);
+    minimized.title = label;
+    if (textEl) textEl.textContent = label;
+  }
+
+  getNewChunkText(currentText, lastSavedText) {
+    if (!lastSavedText) {
+      return currentText.trim();
+    }
+
+    if (currentText === lastSavedText) {
+      return '';
+    }
+
+    if (currentText.startsWith(lastSavedText)) {
+      return currentText.slice(lastSavedText.length).trim();
+    }
+
+    const maxOverlap = Math.min(200, lastSavedText.length, currentText.length);
+    for (let size = maxOverlap; size >= 12; size -= 1) {
+      if (lastSavedText.slice(-size) === currentText.slice(0, size)) {
+        return currentText.slice(size).trim();
+      }
+    }
+
+    return currentText.trim();
   }
 
   escapeHtml(text) {
@@ -2953,15 +3006,35 @@ async function createSimpleUI() {
 
   document.body.appendChild(overlay);
 
-  // Restore UI state
-  if (capturer.config.get('overlayMinimized')) {
-    const panel = document.getElementById('cc-transcript-panel');
-    const actions = document.querySelector('.cc-actions');
-    const btn = document.getElementById('cc-minimize');
-    if (panel) panel.style.display = 'none';
-    if (actions) actions.style.display = 'none';
-    if (btn) btn.innerHTML = '&#43;';
+  const minimized = document.createElement('div');
+  minimized.id = 'cc-minimized';
+  minimized.innerHTML = `
+    <span class="cc-mini-dot"></span>
+    <span class="cc-mini-text">${capturer.t('status.waiting')}</span>
+  `;
+  document.body.appendChild(minimized);
+
+  const applyMinimizedPosition = (position) => {
+    if (!position) return;
+    minimized.style.left = `${position.x}px`;
+    minimized.style.top = `${position.y}px`;
+    minimized.style.right = 'auto';
+    minimized.style.bottom = 'auto';
+  };
+
+  const setMinimizedState = async (isMinimized) => {
+    overlay.style.display = isMinimized ? 'none' : 'flex';
+    minimized.style.display = isMinimized ? 'flex' : 'none';
+    await capturer.config.save('overlayMinimized', isMinimized);
+  };
+
+  const savedMinimizedPos = capturer.config.get('overlayMinimizedPos');
+  if (savedMinimizedPos) {
+    applyMinimizedPosition(savedMinimizedPos);
   }
+
+  await setMinimizedState(!!capturer.config.get('overlayMinimized'));
+  capturer.updateMinimizedStatus();
 
   // Restore captions if available
   if (capturer.captionBuffer && capturer.captionBuffer.getActiveCount() > 0) {
@@ -3040,26 +3113,54 @@ async function createSimpleUI() {
 
   // Minimize button
   document.getElementById('cc-minimize').onclick = async () => {
-    const panel = document.getElementById('cc-transcript-panel');
-    const actions = document.querySelector('.cc-actions');
-    const statusBar = document.querySelector('.cc-status-bar');
-    const pendingArea = document.getElementById('cc-pending-area');
-    const btn = document.getElementById('cc-minimize');
-
-    if (panel.style.display === 'none') {
-      panel.style.display = 'flex';
-      if (actions) actions.style.display = 'flex';
-      if (statusBar) statusBar.style.display = 'flex';
-      btn.innerHTML = '&#8722;';
-      await capturer.config.save('overlayMinimized', false);
-    } else {
-      panel.style.display = 'none';
-      if (actions) actions.style.display = 'none';
-      if (pendingArea) pendingArea.style.display = 'none';
-      btn.innerHTML = '&#43;';
-      await capturer.config.save('overlayMinimized', true);
-    }
+    await setMinimizedState(true);
   };
+
+  // Restore from minimized icon
+  minimized.addEventListener('click', async () => {
+    await setMinimizedState(false);
+  });
+
+  // Drag minimized icon
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  const onDragStart = (event) => {
+    const point = event.touches ? event.touches[0] : event;
+    isDragging = true;
+    minimized.classList.add('dragging');
+    dragOffsetX = point.clientX - minimized.offsetLeft;
+    dragOffsetY = point.clientY - minimized.offsetTop;
+  };
+
+  const onDragMove = (event) => {
+    if (!isDragging) return;
+    const point = event.touches ? event.touches[0] : event;
+    const left = Math.max(8, Math.min(window.innerWidth - minimized.offsetWidth - 8, point.clientX - dragOffsetX));
+    const top = Math.max(8, Math.min(window.innerHeight - minimized.offsetHeight - 8, point.clientY - dragOffsetY));
+    minimized.style.left = `${left}px`;
+    minimized.style.top = `${top}px`;
+    minimized.style.right = 'auto';
+    minimized.style.bottom = 'auto';
+  };
+
+  const onDragEnd = async () => {
+    if (!isDragging) return;
+    isDragging = false;
+    minimized.classList.remove('dragging');
+    await capturer.config.save('overlayMinimizedPos', {
+      x: minimized.offsetLeft,
+      y: minimized.offsetTop
+    });
+  };
+
+  minimized.addEventListener('mousedown', onDragStart);
+  minimized.addEventListener('touchstart', onDragStart, { passive: true });
+  window.addEventListener('mousemove', onDragMove);
+  window.addEventListener('touchmove', onDragMove, { passive: true });
+  window.addEventListener('mouseup', onDragEnd);
+  window.addEventListener('touchend', onDragEnd);
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
