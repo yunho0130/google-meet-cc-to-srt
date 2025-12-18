@@ -280,6 +280,49 @@
 }
 
 /* =============================================================================
+   Capture Controls (Start/Stop Buttons)
+   ============================================================================= */
+.cc-capture-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.cc-btn-start,
+.cc-btn-stop {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cc-btn-start {
+  background: rgba(129, 201, 149, 0.2);
+  border: 1px solid rgba(129, 201, 149, 0.5);
+  color: #81c995;
+}
+
+.cc-btn-start:hover {
+  background: rgba(129, 201, 149, 0.3);
+  border-color: #81c995;
+}
+
+.cc-btn-stop {
+  background: rgba(242, 139, 130, 0.2);
+  border: 1px solid rgba(242, 139, 130, 0.5);
+  color: #f28b82;
+}
+
+.cc-btn-stop:hover {
+  background: rgba(242, 139, 130, 0.3);
+  border-color: #f28b82;
+}
+
+/* =============================================================================
    Pending Text Area
    ============================================================================= */
 .cc-pending {
@@ -315,6 +358,10 @@
   line-height: 1.5;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  /* v3.5.3: Limit visible area to ~5 lines with scroll */
+  max-height: calc(1.5em * 5);  /* 5 lines at 1.5 line-height */
+  overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 /* =============================================================================

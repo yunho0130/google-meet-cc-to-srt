@@ -6,12 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Google Meet CC Capturer** is a Chrome extension (Manifest V3) that captures Google Meet's built-in closed captions without requiring any API calls.
 
-### Current Version: 3.4.0
+### Current Version: 3.5.5
 
 **Key Features:**
 - **Real-time caption capture** from Google Meet closed captions
 - **No API keys** or external services required
 - **Auto-start capture** when CC is detected
+- **Incremental saving** - Only new text saved at each 30s interval (v3.5.5)
 - **Timestamp-based filtering** - Simple, robust deduplication (v3.4.0)
 - **Meeting history** - Browse, view, download, and delete past recordings
 - **Quick Guide in popup** - Easy access guide for users
@@ -154,6 +155,33 @@ npm run generate-icons
 ```
 
 ## Version History
+
+### v3.5.5 - Incremental Save (Duplicate Fix)
+**Release Date**: 2024-12-18
+
+**Problem Solved:**
+- Previous versions saved the FULL accumulated text at each 30-second interval
+- This caused duplicate content across consecutive saves:
+  ```
+  [00:00:30] Hello world this is a test.
+  [00:01:00] Hello world this is a test. And more content here.
+  ```
+
+**Solution:**
+- Track `lastSavedText` to remember what was previously saved
+- At each 30s interval, extract and save ONLY the new portion
+- Result: Clean, non-duplicated transcript:
+  ```
+  [00:00:30] Hello world this is a test.
+  [00:01:00] And more content here.
+  ```
+
+**Technical Changes:**
+- Added `lastSavedText` variable to track saved content
+- Modified `flushChunkToBuffer()` to extract new text only
+- Reset `lastSavedText` on start/stop/clear operations
+
+---
 
 ### v3.4.0 - Timestamp-Based Capture (Major Fix)
 **Release Date**: 2024-12-18

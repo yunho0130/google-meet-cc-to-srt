@@ -492,6 +492,7 @@ class PersistentStorage {
 
   /**
    * Perform auto-save without restarting capture
+   * v3.5.3: Now flushes chunk to buffer before saving
    */
   async performAutoSave() {
     try {
@@ -507,16 +508,21 @@ class PersistentStorage {
         return;
       }
 
-      // Flush any pending caption text without restarting capture
+      // v3.5.3: First flush any pending text to chunk
       this.capturerInstance.flushPendingText();
+
+      // v3.5.3: Then flush the chunk to buffer with timestamp and speaker
+      const chunkSaved = this.capturerInstance.flushChunkToBuffer();
+      if (chunkSaved) {
+        console.log('[PersistentStorage] ✓ Chunk flushed to buffer');
+      }
 
       if (this.getCaptionsCallback) {
         const captions = this.getCaptionsCallback();
-        if (captions.length > this.lastSavedCount) {
-          await this.updateSession(captions);
-          this.lastSavedCount = captions.length;
-          console.log('[PersistentStorage] Session updated via auto-save');
-        }
+        // v3.5.3: Always update session to persist chunk
+        await this.updateSession(captions);
+        this.lastSavedCount = captions.length;
+        console.log('[PersistentStorage] Session updated via auto-save');
       }
 
       // Dispatch custom event for UI update
@@ -1156,6 +1162,17 @@ class SimpleCCCapturer {
     // Auto-save countdown timer
     this.autoSaveCountdownInterval = null;
     this.autoSaveSecondsRemaining = 30;
+
+    // v3.5.3: Chunk-based capture (30-second chunks)
+    // Instead of saving each caption individually, accumulate text for 30 seconds
+    // then save as a single chunk with timestamp and speaker
+    this.currentChunkText = '';
+    this.currentChunkSpeaker = '';
+    this.chunkStartTime = 0;
+
+    // v3.5.5: Track last saved text for incremental saving
+    // Only save NEW text (text after lastSavedText) at each 30-second interval
+    this.lastSavedText = '';
   }
 
   /**
@@ -1477,6 +1494,10 @@ class SimpleCCCapturer {
     this.lastSpeaker = '';
     this.pendingText = '';
     this.lastCaptureTimestamp = Date.now(); // v3.4.0: Initialize timestamp
+    // v3.5.5: Reset saved text tracker
+    this.lastSavedText = '';
+    this.currentChunkText = '';
+    this.currentChunkSpeaker = '';
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
@@ -1675,7 +1696,7 @@ class SimpleCCCapturer {
   }
 
   /**
-   * Update status indicator (recording dot)
+   * Update status indicator (recording dot) and Start/Stop buttons
    */
   updateStatusIndicator(isRecording) {
     const statusDot = document.querySelector('.cc-status-dot');
@@ -1684,6 +1705,19 @@ class SimpleCCCapturer {
         statusDot.classList.add('recording');
       } else {
         statusDot.classList.remove('recording');
+      }
+    }
+
+    // v3.5.4: Update Start/Stop button visibility
+    const startBtn = document.getElementById('cc-start-btn');
+    const stopBtn = document.getElementById('cc-stop-btn');
+    if (startBtn && stopBtn) {
+      if (isRecording) {
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-flex';
+      } else {
+        startBtn.style.display = 'inline-flex';
+        stopBtn.style.display = 'none';
       }
     }
   }
@@ -1748,8 +1782,12 @@ class SimpleCCCapturer {
     if (!pendingArea || !pendingText) return;
 
     if (text) {
+      // v3.5.3: Keep full text, CSS handles 5-line visible limit with scroll
       pendingText.textContent = text;
       pendingArea.style.display = 'flex';
+
+      // Auto-scroll to bottom to show most recent text
+      pendingText.scrollTop = pendingText.scrollHeight;
     } else {
       pendingText.textContent = '';
       pendingArea.style.display = 'none';
@@ -1757,26 +1795,25 @@ class SimpleCCCapturer {
   }
 
   /**
-   * Capture stable text after debounce (v3.4.0 - timestamp-based, simplified)
+   * Capture stable text after debounce (v3.5.4 - chunk-based capture with immediate display)
    *
-   * Key changes:
-   * - No more complex duplicate detection
-   * - Simply capture text if it has changed since last capture
-   * - Use timestamp to track when we last captured
-   * - Stream-like processing: if debounce timer fires, capture current text
+   * Key changes (v3.5.4):
+   * - Text REPLACES (not accumulates) currentChunkText - overwrite mode
+   * - Immediately displayed in Current area (not cleared)
+   * - Every 30 seconds, the chunk is saved with timestamp and speaker
+   * - Format: [00:00:30] [Speaker] text...
    */
   captureStableText(text) {
     const processingStart = Date.now();
     const currentTimestamp = Date.now();
 
     try {
-      // v3.4.4: Jeff Dean style - Ultra-simple, ultra-reliable
       console.log('[CC] ========================================');
-      console.log('[CC] captureStableText() called');
+      console.log('[CC] captureStableText() called (v3.5.4 overwrite mode)');
       console.log('[CC]   Input text:', text ? `"${text.substring(0, 100)}"` : 'NULL/EMPTY');
       console.log('[CC]   isCapturing:', this.isCapturing);
 
-      // Basic validation - only check what's absolutely necessary
+      // Basic validation
       if (!text) {
         console.log('[CC] ⊘ SKIP: text is null/undefined/empty');
         return;
@@ -1791,66 +1828,48 @@ class SimpleCCCapturer {
       console.log('[CC]   Normalized:', `"${normalizedText.substring(0, 100)}"`);
       console.log('[CC]   Last processed:', `"${this.lastProcessedText.substring(0, 100)}"`);
 
-      let captureText = normalizedText;
-      let captureType = 'full';
-
-      if (this.lastRawText && normalizedText.startsWith(this.lastRawText)) {
-        const delta = normalizedText.slice(this.lastRawText.length).trim();
-        if (!delta) {
-          console.log('[CC] ⊘ SKIP: no new delta (text startsWith lastRawText)');
-          this.lastRawText = normalizedText;
-          this.performanceMonitor.recordDuplicate();
-          return;
-        }
-        captureText = delta;
-        captureType = 'append';
-      }
-
-      // Simple duplicate check - EXACT match only on capture text
-      if (captureText === this.lastProcessedText) {
-        console.log('[CC] ⊘ SKIP: exact duplicate (captureText === lastProcessedText)');
-        this.lastRawText = normalizedText;
+      // Simple duplicate check - EXACT match only
+      if (normalizedText === this.lastProcessedText) {
+        console.log('[CC] ⊘ SKIP: exact duplicate');
         this.performanceMonitor.recordDuplicate();
         return;
       }
 
-      console.log(`[CC] ✓ WILL CAPTURE: ${captureType}`);
+      // v3.5.4: REPLACE (not accumulate) chunk content with new text
+      // This is overwrite mode - each new caption replaces the previous one
+      this.currentChunkText = normalizedText;
+      this.currentChunkSpeaker = this.includeSpeakerName ? this.lastSpeaker : '';
 
-      // Update state BEFORE capturing (in case of error)
-      this.lastProcessedText = captureText;
+      // Initialize chunk start time if not set
+      if (this.chunkStartTime === 0) {
+        this.chunkStartTime = Date.now() - this.startTime;
+      }
+
+      console.log(`[CC] ✓ CHUNK REPLACED: "${normalizedText.substring(0, 50)}..."`);
+      console.log(`[CC]   Chunk speaker: ${this.currentChunkSpeaker}`);
+      console.log(`[CC]   Chunk start time: ${this.formatTime(this.chunkStartTime)}`);
+
+      // Update state
+      this.lastProcessedText = normalizedText;
       this.lastRawText = normalizedText;
       this.lastCaptureTimestamp = currentTimestamp;
-
-      // Create caption entry - save EXACTLY what we received
-      const elapsed = Date.now() - this.startTime;
-      const entry = {
-        time: this.formatTime(elapsed),
-        timestamp: elapsed,
-        text: captureText,  // Save only new delta when captions accumulate
-        speaker: this.includeSpeakerName ? this.lastSpeaker : '',
-        capturedAt: currentTimestamp
-      };
-
-      // Add to buffer
-      this.captionBuffer.add(entry);
-      console.log('[CC] ✓ ADDED TO BUFFER');
 
       // Record metrics
       this.performanceMonitor.recordCapture();
       this.performanceMonitor.recordProcessingTime(processingStart);
 
-      // Log success
-      console.log(`[CC] ✓✓✓ CAPTURED [${entry.time}]: "${entry.text}"`);
-      console.log(`[CC]   Total captions: ${this.captionBuffer.getCount()}`);
       console.log('[CC] ========================================');
 
-      // Update UI
-      this.updateOverlay(entry);
+      // Update stats
       this.updateStats();
 
-      // Clear pending text display
+      // v3.5.4: Keep showing current chunk in pending area (don't clear)
+      // The Current area shows the live text that will be saved at 30s mark
       if (this.config.get('showPendingText')) {
-        this.showPendingText('');
+        const displayText = this.currentChunkSpeaker
+          ? `[${this.currentChunkSpeaker}] ${normalizedText}`
+          : normalizedText;
+        this.showPendingText(displayText);
       }
     } catch (error) {
       console.error('[CC] ✗✗✗ ERROR in captureStableText:', error);
@@ -1861,6 +1880,7 @@ class SimpleCCCapturer {
 
   /**
    * Flush pending text without restarting capture (auto-save helper)
+   * v3.5.3: Now also processes pending text into chunk
    */
   flushPendingText() {
     if (!this.isCapturing) {
@@ -1871,6 +1891,88 @@ class SimpleCCCapturer {
       console.log('[CC] Flushing pending text for auto-save');
       this.captureStableText(this.pendingText);
     }
+  }
+
+  /**
+   * v3.5.5: Flush current chunk to buffer with timestamp and speaker
+   * Called every 30 seconds by auto-save
+   * Format: [00:00:30] [Speaker] text...
+   *
+   * KEY CHANGE (v3.5.5): Only saves NEW text that wasn't saved before
+   * - Compares currentChunkText with lastSavedText
+   * - Extracts only the new portion
+   * - Prevents duplicate content across 30-second intervals
+   */
+  flushChunkToBuffer() {
+    if (!this.currentChunkText) {
+      console.log('[CC] flushChunkToBuffer: No chunk text to save');
+      return false;
+    }
+
+    const elapsed = Date.now() - this.startTime;
+    const timestamp = this.formatTime(elapsed);
+
+    console.log('[CC] ========================================');
+    console.log('[CC] flushChunkToBuffer() - v3.5.5 Incremental Save');
+    console.log(`[CC]   Timestamp: ${timestamp}`);
+    console.log(`[CC]   Speaker: ${this.currentChunkSpeaker || '(none)'}`);
+    console.log(`[CC]   Current chunk: "${this.currentChunkText.substring(0, 80)}..."`);
+    console.log(`[CC]   Last saved: "${this.lastSavedText.substring(0, 80)}..."`);
+
+    // v3.5.5: Extract only NEW text (not previously saved)
+    let newText = this.currentChunkText;
+
+    if (this.lastSavedText && this.currentChunkText.startsWith(this.lastSavedText)) {
+      // Current text starts with previously saved text - extract only the new part
+      newText = this.currentChunkText.substring(this.lastSavedText.length).trim();
+      console.log(`[CC]   Extracted new text: "${newText.substring(0, 80)}..."`);
+    } else if (this.lastSavedText) {
+      // Text doesn't start with lastSavedText - might be a new sentence or speaker change
+      // In this case, save the full current text
+      console.log('[CC]   Text structure changed, saving full chunk');
+    }
+
+    // Skip if no new text to save
+    if (!newText || newText.trim() === '') {
+      console.log('[CC] ⊘ SKIP: No new text to save');
+      console.log('[CC] ========================================');
+      return false;
+    }
+
+    const speakerPrefix = this.currentChunkSpeaker ? `[${this.currentChunkSpeaker}] ` : '';
+
+    console.log(`[CC]   New text length: ${newText.length} chars`);
+
+    // Create caption entry with the NEW text only
+    const entry = {
+      time: timestamp,
+      timestamp: elapsed,
+      text: newText,
+      speaker: this.currentChunkSpeaker,
+      capturedAt: Date.now(),
+      isChunk: true
+    };
+
+    // Add to buffer
+    this.captionBuffer.add(entry);
+    console.log('[CC] ✓ NEW TEXT SAVED TO BUFFER');
+    console.log(`[CC]   Total entries: ${this.captionBuffer.getCount()}`);
+    console.log('[CC] ========================================');
+
+    // Update UI with the chunk
+    this.updateOverlay(entry);
+    this.updateStats();
+
+    // v3.5.5: Update lastSavedText to current full text (for next comparison)
+    this.lastSavedText = this.currentChunkText;
+
+    // DO NOT reset currentChunkText - keep accumulating
+    // Only reset chunk timing for next 30-second period
+    this.chunkStartTime = Date.now() - this.startTime;
+
+    // DO NOT reset lastProcessedText - allow continuous capture without duplicates
+
+    return true;
   }
 
   /**
@@ -1922,10 +2024,22 @@ class SimpleCCCapturer {
       }
     }
 
+    // v3.5.3: Flush any remaining chunk to buffer before stopping
+    if (this.currentChunkText) {
+      console.log('[CC] Flushing final chunk before stop');
+      this.flushChunkToBuffer();
+    }
+
     this.lastProcessedText = '';
     this.lastRawText = '';
     this.pendingText = '';
     this.lastCaptureTimestamp = 0; // v3.4.0: Reset timestamp
+    // v3.5.3: Reset chunk state
+    this.currentChunkText = '';
+    this.currentChunkSpeaker = '';
+    this.chunkStartTime = 0;
+    // v3.5.5: Reset saved text tracker
+    this.lastSavedText = '';
 
     this.showPendingText('');
 
@@ -2285,11 +2399,20 @@ class SimpleCCCapturer {
   }
 
   generateTXT(captions, includeTimestamps) {
-    if (includeTimestamps) {
-      return captions.map(c => `[${c.time}] ${this.formatCaptionText(c)}`).join('\n');
-    } else {
-      return captions.map(c => this.formatCaptionText(c)).join('\n');
-    }
+    // v3.5.3: New format with timestamp and speaker on same line
+    // Format: [00:00:30] [Speaker] text...
+    return captions.map(c => {
+      const timestamp = `[${c.time}]`;
+      const speaker = c.speaker ? ` [${c.speaker}]` : '';
+      const text = c.text;
+
+      if (includeTimestamps) {
+        return `${timestamp}${speaker} ${text}`;
+      } else {
+        // Even without timestamps, include speaker if available
+        return speaker ? `${speaker.trim()} ${text}` : text;
+      }
+    }).join('\n');
   }
 
   generateSRT(captions) {
@@ -2824,6 +2947,10 @@ async function createSimpleUI() {
         <span class="cc-status-dot"></span>
         <span id="cc-status-text">${capturer.t('status.waiting')}</span>
       </div>
+      <div class="cc-capture-controls">
+        <button id="cc-start-btn" class="cc-btn cc-btn-start" title="Start Capture">&#9654; Start</button>
+        <button id="cc-stop-btn" class="cc-btn cc-btn-stop" title="Stop Capture" style="display: none;">&#9632; Stop</button>
+      </div>
       <div class="cc-stats">
         <span class="cc-stat-item">&#128221; <span id="cc-stat-captions">0</span></span>
         <span class="cc-stat-item">&#128172; <span id="cc-stat-words">0</span></span>
@@ -2897,6 +3024,24 @@ async function createSimpleUI() {
   }
 
   // Event Listeners
+
+  // Start button
+  document.getElementById('cc-start-btn').onclick = () => {
+    if (!capturer.isCapturing) {
+      capturer.startAutoDetection();
+      document.getElementById('cc-start-btn').style.display = 'none';
+      document.getElementById('cc-stop-btn').style.display = 'inline-flex';
+    }
+  };
+
+  // Stop button
+  document.getElementById('cc-stop-btn').onclick = () => {
+    if (capturer.isCapturing) {
+      capturer.stop();
+      document.getElementById('cc-stop-btn').style.display = 'none';
+      document.getElementById('cc-start-btn').style.display = 'inline-flex';
+    }
+  };
 
   // Language toggle
   document.getElementById('cc-lang-toggle').onclick = () => {
