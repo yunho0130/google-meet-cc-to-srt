@@ -7,6 +7,12 @@
 
 <img src="assets/images/marquee-promo-1400x560.png" alt="Marquee promotion tile" width="100%">
 
+☕ **If you find this extension helpful, consider supporting the project!**
+
+<a href="https://buymeacoffee.com/yunhomaeng" target="_blank"><img src="assets/images/buy-me-ai-tokens.png" alt="Buy Me AI Tokens" height="50"></a>
+
+*Your support helps maintain and improve this extension.*
+
 [Download Latest Release](#installation) • [Features](#features) • [Usage Guide](#usage) • [Documentation](CLAUDE.md)
 
 ![Version](https://img.shields.io/badge/version-3.5.8-blue.svg)
