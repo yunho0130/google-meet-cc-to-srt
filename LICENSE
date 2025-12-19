@@ -1,8 +1,26 @@
-# License
+# Apache 2.0 + Commons Clause License
 
 ## Google Meet CC Capturer
 
 **Copyright (c) 2025 Yunho Maeng (맹윤호)**
+
+---
+
+### Quick Summary
+
+| Permissions | Limitations | Conditions |
+|:------------|:------------|:-----------|
+| ✅ Private use | ❌ Commercial sale | ℹ️ License notice |
+| ✅ Personal use | ❌ Resale | ℹ️ Copyright notice |
+| ✅ Educational use | ❌ SaaS offering | ℹ️ Attribution required |
+| ✅ Non-profit use | ❌ Liability | ℹ️ State changes |
+| ✅ Internal business use | ❌ Warranty | ℹ️ Same license for derivatives |
+| ✅ Modification | ❌ Competing products | ℹ️ CLA for contributors |
+| ✅ Distribution | ❌ Large enterprise ($1M+) distribution | |
+
+> **This is not legal advice.** See full license terms below.
+
+---
 
 This software is licensed under the **Apache License 2.0 with Commons Clause** and additional terms as specified below.
 
