@@ -1,6 +1,6 @@
 {
   "name": "google-meet-transcriber",
-  "version": "3.5.8",
+  "version": "3.6.1",
   "description": "Chrome extension for capturing Google Meet closed captions and exporting TXT/SRT",
   "private": true,
   "scripts": {

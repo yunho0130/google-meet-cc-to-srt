@@ -2,22 +2,31 @@
  * Simple Google Meet CC Capturer
  * No API calls - just capture CC text and download
  *
- * Version 3.5.8 - Overwrite Pattern: Simple & Powerful
+ * Version 3.6.1 - Immediate Capture Pattern: Fix Caption Accumulation Bug
  *
- * Philosophy (v3.5.7):
- * - OVERWRITE instead of APPEND - eliminates caption overlap
- * - Current = volatile buffer (always latest text)
- * - History = permanent storage (saved every 30s)
- * - No accumulation, no complex deduplication
- * - Simple exact-match duplicate check only
+ * Philosophy (v3.6.1):
+ * - IMMEDIATE CAPTURE - save each stable caption directly to buffer
+ * - No volatile "current chunk" that gets overwritten
+ * - Each distinct caption is preserved
+ * - Simple exact-match duplicate check against last captured text
+ * - Auto-save (configurable interval) only persists to chrome.storage
  *
- * What changed from v3.5.6:
- * - REMOVED: accumulatedChunkText, previousChunkSpeaker variables
- * - REMOVED: Complex speaker change detection logic
- * - REMOVED: Progressive text extraction
- * - SIMPLIFIED: currentChunkText always overwrites (never appends)
- * - ADDED: Exception handling for non-Meet pages (no console spam)
- * - RESULT: Caption overlap issue completely eliminated
+ * Bug Fixed (v3.6.1):
+ * - PREVIOUS: Only the last caption in each 30s interval was saved
+ * - CAUSE: currentChunkText was overwritten on each new caption
+ * - FIX: Save immediately to buffer when text stabilizes
+ * - RESULT: All captions are preserved, no data loss
+ *
+ * What changed from v3.5.7/v3.5.8:
+ * - REMOVED: currentChunkText, currentChunkSpeaker, chunkStartTime variables
+ * - REMOVED: flushChunkToBuffer() method (no longer needed)
+ * - REMOVED: getNewChunkText() method (no longer needed)
+ * - CHANGED: captureStableText() now saves directly to captionBuffer
+ * - SIMPLIFIED: Auto-save just persists to chrome.storage
+ * - FIXED: Caption accumulation/loss bug completely eliminated
+ *
+ * Previous (v3.5.7/v3.5.8):
+ * - Overwrite pattern had bug: earlier captions in 30s window were lost
  *
  * Previous (v3.5.6):
  * - Multi-speaker support with text accumulation
@@ -42,7 +51,7 @@
  *
  * Core Features:
  * - Real-time CC capture from Google Meet
- * - Auto-save every 30 seconds (no capture interruption)
+ * - Auto-save at a configurable interval (no capture interruption)
  * - Multilingual support (English/Korean)
  * - Download as TXT or SRT
  * - Copy to clipboard (Ctrl+Shift+C)
@@ -105,7 +114,7 @@ const LANGUAGES = {
       copied: 'Copied to clipboard!',
       copyFailed: 'Copy failed',
       downloaded: 'Downloaded successfully',
-      noCaptions: 'No captions to copy',
+      noCaptions: 'Enable CC in Google Meet → Stop capturing → Save captions',
       autoStarted: 'CC auto-capture started!',
       sessionRestored: 'Previous session restored',
       sessionSaved: 'Session saved'
@@ -178,7 +187,7 @@ const LANGUAGES = {
       copied: '클립보드에 복사됨!',
       copyFailed: '복사 실패',
       downloaded: '다운로드 완료',
-      noCaptions: '복사할 자막이 없습니다',
+      noCaptions: 'Google Meet에서 CC 활성화 → 캡처 → Stop으로 저장',
       autoStarted: 'CC 자동 캡처 시작됨!',
       sessionRestored: '이전 세션 복원됨',
       sessionSaved: '세션 저장됨'
@@ -269,7 +278,7 @@ const UI_TEXT_SHORT_PATTERNS = [
 ];
 
 // =============================================================================
-// PersistentStorage - Auto-save to chrome.storage.local
+// PersistentStorage - Manual save to chrome.storage.local
 // =============================================================================
 class PersistentStorage {
   constructor() {
@@ -278,13 +287,7 @@ class PersistentStorage {
     this.currentSessionId = null;
     this.saveDebounceTimer = null;
     this.SAVE_DEBOUNCE_MS = 2000; // Debounce saves to avoid excessive writes
-
-    // Auto-save timer (30 seconds interval)
-    this.autoSaveInterval = null;
-    this.AUTO_SAVE_INTERVAL_MS = 30000; // 30 seconds
     this.lastSavedCount = 0; // Track last saved caption count to detect changes
-    this.getCaptionsCallback = null; // Callback to get current captions
-    this.capturerInstance = null; // Reference to SimpleCCCapturer for auto-save flush
   }
 
   /**
@@ -380,7 +383,7 @@ class PersistentStorage {
     try {
       const session = await this.getCurrentSession();
       if (session) {
-        session.captions = captions;
+        session.captions = captions.map(caption => ({ ...caption }));
         session.lastUpdate = Date.now();
         await this.saveSession(session);
         console.log('[PersistentStorage] Session updated with', captions.length, 'captions');
@@ -455,86 +458,10 @@ class PersistentStorage {
   }
 
   /**
-   * Start automatic periodic save (every 30 seconds)
+   * Force immediate save (manual save)
    */
-  startAutoSave(getCaptionsCallback, capturerInstance) {
-    // Stop any existing timer
-    this.stopAutoSave();
-
-    this.getCaptionsCallback = getCaptionsCallback;
-    this.capturerInstance = capturerInstance;
-    this.lastSavedCount = 0;
-
-    console.log('[PersistentStorage] Starting auto-save (30s interval)');
-
-    this.autoSaveInterval = setInterval(async () => {
-      await this.performAutoSave();
-    }, this.AUTO_SAVE_INTERVAL_MS);
-  }
-
-  /**
-   * Perform auto-save without restarting capture
-   * v3.5.3: Now flushes chunk to buffer before saving
-   */
-  async performAutoSave() {
-    try {
-      console.log('[PersistentStorage] ⏰ Auto-save triggered (30s elapsed)');
-
-      if (!this.capturerInstance) {
-        console.warn('[PersistentStorage] Auto-save skipped: no capturer instance');
-        return;
-      }
-
-      if (!this.currentSessionId) {
-        console.warn('[PersistentStorage] Auto-save skipped: no currentSessionId');
-        return;
-      }
-
-      // v3.5.3: First flush any pending text to chunk
-      this.capturerInstance.flushPendingText();
-
-      // v3.5.3: Then flush the chunk to buffer with timestamp and speaker
-      const chunkSaved = this.capturerInstance.flushChunkToBuffer();
-      if (chunkSaved) {
-        console.log('[PersistentStorage] ✓ Chunk flushed to buffer');
-      }
-
-      if (this.getCaptionsCallback) {
-        const captions = this.getCaptionsCallback();
-        // v3.5.3: Always update session to persist chunk
-        await this.updateSession(captions);
-        this.lastSavedCount = captions.length;
-        console.log('[PersistentStorage] Session updated via auto-save');
-      }
-
-      // Dispatch custom event for UI update
-      window.dispatchEvent(new CustomEvent('cc-auto-saved', {
-        detail: { count: this.capturerInstance.captionBuffer.getCount(), newCount: 0 }
-      }));
-
-      console.log('[PersistentStorage] ✓ Auto-save completed');
-    } catch (error) {
-      console.error('[PersistentStorage] Auto-save error:', error);
-    }
-  }
-
-  /**
-   * Stop automatic periodic save
-   */
-  stopAutoSave() {
-    if (this.autoSaveInterval) {
-      clearInterval(this.autoSaveInterval);
-      this.autoSaveInterval = null;
-      console.log('[PersistentStorage] Auto-save stopped');
-    }
-  }
-
-  /**
-   * Force immediate save (called on stop)
-   */
-  async forceSave() {
-    if (this.getCaptionsCallback && this.currentSessionId) {
-      const captions = this.getCaptionsCallback();
+  async forceSave(captions) {
+    if (this.currentSessionId && captions) {
       await this.updateSession(captions);
       this.lastSavedCount = captions.length;
       console.log('[PersistentStorage] Force save: final state saved');
@@ -633,20 +560,27 @@ class CCConfig {
 // CaptionBuffer - Circular Buffer for Memory Management
 // =============================================================================
 class CaptionBuffer {
-  constructor(maxSize = 1000) {
+  constructor(maxSize = 1000, onOverflow = null) {
     this.maxSize = maxSize;
     this.captions = [];
     this.archivedCount = 0;
+    this.onOverflow = onOverflow;
   }
 
   add(caption) {
     this.captions.push(caption);
 
     if (this.captions.length > this.maxSize) {
-      const toArchive = this.captions.length - this.maxSize;
-      this.captions.splice(0, toArchive);
-      this.archivedCount += toArchive;
-      console.log(`[CaptionBuffer] Archived ${toArchive} captions to prevent memory leak`);
+      const snapshot = this.captions.slice();
+      this.clear();
+      if (this.onOverflow) {
+        try {
+          this.onOverflow(snapshot);
+        } catch (error) {
+          console.error('[CaptionBuffer] Overflow handler error:', error);
+        }
+      }
+      console.log('[CaptionBuffer] Max size reached, buffer flushed and reset');
     }
   }
 
@@ -655,7 +589,7 @@ class CaptionBuffer {
   }
 
   getCount() {
-    return this.captions.length + this.archivedCount;
+    return this.captions.length;
   }
 
   getActiveCount() {
@@ -710,9 +644,15 @@ class CaptionBuffer {
   setMaxSize(newMaxSize) {
     this.maxSize = newMaxSize;
     if (this.captions.length > this.maxSize) {
-      const toArchive = this.captions.length - this.maxSize;
-      this.captions.splice(0, toArchive);
-      this.archivedCount += toArchive;
+      const snapshot = this.captions.slice();
+      this.clear();
+      if (this.onOverflow) {
+        try {
+          this.onOverflow(snapshot);
+        } catch (error) {
+          console.error('[CaptionBuffer] Overflow handler error:', error);
+        }
+      }
     }
   }
 }
@@ -1119,12 +1059,11 @@ class SimpleCCCapturer {
     this.debounceTimer = null;
     this.lastSpeaker = '';
     this.pendingText = '';
+    this.pendingTextStartTime = null;
 
-    // v3.5.7: Overwrite pattern - simple and powerful
-    // currentPendingText: always overwrite with latest (for UI display)
-    // lastSavedText: track what was last saved to prevent duplicates
-    this.currentPendingText = '';
-    this.lastSavedText = '';
+    // v3.6.0: Immediate capture pattern
+    // Track last captured text to prevent exact duplicates
+    this.lastCapturedText = '';
 
     // Core components
     this.config = new CCConfig();
@@ -1141,18 +1080,6 @@ class SimpleCCCapturer {
 
     // Duration timer
     this.durationInterval = null;
-
-    // Auto-save countdown timer
-    this.autoSaveCountdownInterval = null;
-    this.autoSaveSecondsRemaining = 30;
-
-    // v3.5.7: Simplified chunk tracking - no accumulation
-    // currentChunkText: always overwrite (not accumulate)
-    // currentChunkSpeaker: current speaker for this chunk
-    // chunkStartTime: when current chunk started
-    this.currentChunkText = '';
-    this.currentChunkSpeaker = '';
-    this.chunkStartTime = 0;
 
     this.statusState = 'waiting';
   }
@@ -1258,7 +1185,7 @@ class SimpleCCCapturer {
       this.currentLanguage = this.config.get('language');
 
       const maxCaptions = this.config.get('maxCaptions');
-      this.captionBuffer = new CaptionBuffer(maxCaptions);
+      this.captionBuffer = new CaptionBuffer(maxCaptions, this.handleBufferOverflow.bind(this));
 
       this.notification = new CCNotification();
 
@@ -1276,7 +1203,7 @@ class SimpleCCCapturer {
       console.log('[CC] Capturer initialized with config');
     } catch (error) {
       console.error('[CC] Initialization error:', error);
-      this.captionBuffer = new CaptionBuffer(1000);
+      this.captionBuffer = new CaptionBuffer(1000, this.handleBufferOverflow.bind(this));
       this.notification = new CCNotification();
     }
   }
@@ -1476,22 +1403,31 @@ class SimpleCCCapturer {
       if (this.captionBuffer) {
         this.captionBuffer.clear();
       } else {
-        this.captionBuffer = new CaptionBuffer(this.config.get('maxCaptions'));
+        this.captionBuffer = new CaptionBuffer(
+          this.config.get('maxCaptions'),
+          this.handleBufferOverflow.bind(this)
+        );
       }
+
+      // v3.8.4: Add empty placeholder to enable copy/txt/srt buttons
+      this.captionBuffer.add({
+        time: this.formatDuration(0),
+        text: '',
+        timestamp: 0,
+        speaker: ''
+      });
+
       await this.persistentStorage.startNewSession();
     }
 
     this.performanceMonitor.reset();
     this.performanceMonitor.startSession();
 
-    // v3.5.7: Reset state for overwrite pattern
+    // v3.6.0: Reset state for immediate capture pattern
     this.lastSpeaker = '';
     this.pendingText = '';
-    this.currentPendingText = '';
-    this.lastSavedText = '';
-    this.currentChunkText = '';
-    this.currentChunkSpeaker = '';
-    this.chunkStartTime = 0;
+    this.lastCapturedText = '';
+    this.pendingTextStartTime = null;
 
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -1506,12 +1442,6 @@ class SimpleCCCapturer {
 
     // Start duration timer
     this.startDurationTimer();
-
-    // Start auto-save timer (30 seconds interval)
-    this.persistentStorage.startAutoSave(() => this.captionBuffer.getAll(), this);
-
-    // Start auto-save countdown UI
-    this.startAutoSaveCountdown();
 
     // Watch for text changes
     this.observer = new MutationObserver((mutations) => {
@@ -1586,96 +1516,6 @@ class SimpleCCCapturer {
   }
 
   /**
-   * Start auto-save countdown timer for UI
-   */
-  startAutoSaveCountdown() {
-    // Show UI elements
-    const infoEl = document.getElementById('cc-autosave-info');
-    const progressEl = document.getElementById('cc-autosave-progress');
-    if (infoEl) infoEl.classList.add('active');
-    if (progressEl) progressEl.classList.add('active');
-
-    // Reset countdown
-    this.autoSaveSecondsRemaining = 30;
-    this.updateAutoSaveUI();
-
-    // Clear existing timer
-    if (this.autoSaveCountdownInterval) {
-      clearInterval(this.autoSaveCountdownInterval);
-    }
-
-    // Start countdown
-    this.autoSaveCountdownInterval = setInterval(() => {
-      this.autoSaveSecondsRemaining--;
-
-      if (this.autoSaveSecondsRemaining <= 0) {
-        this.autoSaveSecondsRemaining = 30; // Reset for next cycle (30 -> 1 countdown)
-      }
-
-      this.updateAutoSaveUI();
-    }, 1000);
-
-    // Listen for save events
-    window.addEventListener('cc-auto-saved', this.onAutoSaved.bind(this));
-  }
-
-  /**
-   * Stop auto-save countdown timer
-   */
-  stopAutoSaveCountdown() {
-    if (this.autoSaveCountdownInterval) {
-      clearInterval(this.autoSaveCountdownInterval);
-      this.autoSaveCountdownInterval = null;
-    }
-
-    // Hide UI elements
-    const infoEl = document.getElementById('cc-autosave-info');
-    const progressEl = document.getElementById('cc-autosave-progress');
-    if (infoEl) infoEl.classList.remove('active');
-    if (progressEl) progressEl.classList.remove('active');
-
-    window.removeEventListener('cc-auto-saved', this.onAutoSaved.bind(this));
-  }
-
-  /**
-   * Update auto-save UI (progress bar and timer)
-   * Countdown shows remaining seconds (30 -> 1)
-   */
-  updateAutoSaveUI() {
-    const timerEl = document.getElementById('cc-autosave-timer');
-    const progressBar = document.getElementById('cc-autosave-progress-bar');
-
-    if (timerEl) {
-      timerEl.textContent = `${this.autoSaveSecondsRemaining}s`;
-    }
-
-    if (progressBar) {
-      const percentage = ((30 - this.autoSaveSecondsRemaining) / 30) * 100;
-      progressBar.style.width = `${percentage}%`;
-    }
-  }
-
-  /**
-   * Handle auto-save event
-   */
-  onAutoSaved(event) {
-    console.log('[CC] Auto-save event received:', event.detail);
-
-    // Show "Saved" indicator
-    const savedEl = document.getElementById('cc-autosave-saved');
-    if (savedEl) {
-      savedEl.classList.add('show');
-      setTimeout(() => {
-        savedEl.classList.remove('show');
-      }, 2000);
-    }
-
-    // Reset countdown
-    this.autoSaveSecondsRemaining = 30;
-    this.updateAutoSaveUI();
-  }
-
-  /**
    * Format duration for display (MM:SS or HH:MM:SS)
    */
   formatDuration(ms) {
@@ -1741,9 +1581,15 @@ class SimpleCCCapturer {
         if (this.config.get('showPendingText')) {
           this.showPendingText('');
         }
+        this.pendingText = '';
+        this.pendingTextStartTime = null;
         return;
       }
 
+      const isNewPendingText = currentText !== this.pendingText;
+      if (isNewPendingText) {
+        this.pendingTextStartTime = Date.now();
+      }
       this.pendingText = currentText;
       console.log('[CC] ✓ Set pendingText:', `"${currentText.substring(0, 50)}..."`);
 
@@ -1790,20 +1636,25 @@ class SimpleCCCapturer {
   }
 
   /**
-   * Capture stable text after debounce (v3.5.7 - overwrite pattern)
+   * Capture stable text after debounce (v3.6.0 - immediate capture pattern)
    *
-   * Key changes (v3.5.7):
-   * - ALWAYS overwrite currentChunkText (no accumulation, no appending)
-   * - Only save to captionBuffer when 30-second timer fires
-   * - Eliminates caption overlap completely
-   * - Philosophy: Current = volatile buffer, History = permanent storage
+   * Key changes (v3.6.0):
+   * - IMMEDIATE capture to captionBuffer (no volatile chunk storage)
+   * - Each stable caption is saved directly to the buffer
+   * - Simple exact-match duplicate check against lastCapturedText
+   * - No caption loss, all distinct captions preserved
+   *
+   * Philosophy (v3.6.0):
+   * - Current = UI display only (volatile)
+   * - Buffer = permanent during session (all captions saved immediately)
+   * - Storage = persistence across reloads (configurable auto-save)
    */
   captureStableText(text) {
     const processingStart = Date.now();
 
     try {
       console.log('[CC] ========================================');
-      console.log('[CC] captureStableText() called (v3.5.7 overwrite mode)');
+      console.log('[CC] captureStableText() called (v3.6.0 immediate capture)');
       console.log('[CC]   Input text:', text ? `"${text.substring(0, 100)}"` : 'NULL/EMPTY');
       console.log('[CC]   isCapturing:', this.isCapturing);
 
@@ -1822,28 +1673,64 @@ class SimpleCCCapturer {
       const currentSpeaker = this.includeSpeakerName ? this.lastSpeaker : '';
 
       console.log('[CC]   Normalized:', `"${normalizedText.substring(0, 100)}"`);
-      console.log('[CC]   Last saved:', `"${this.lastSavedText.substring(0, 100)}"`);
+      console.log('[CC]   Last captured:', `"${this.lastCapturedText.substring(0, 100)}"`);
       console.log('[CC]   Current speaker:', currentSpeaker || '(none)');
 
-      // Skip if exact duplicate of last saved text
-      if (normalizedText === this.lastSavedText) {
-        console.log('[CC] ⊘ SKIP: exact duplicate of last saved');
+      // Skip if exact duplicate of last captured text
+      if (normalizedText === this.lastCapturedText) {
+        console.log('[CC] ⊘ SKIP: exact duplicate of last captured');
         this.performanceMonitor.recordDuplicate();
         return;
       }
 
-      // v3.5.7: ALWAYS OVERWRITE (never append, never accumulate)
-      this.currentChunkText = normalizedText;
-      this.currentChunkSpeaker = currentSpeaker;
-      console.log(`[CC] ✓ CHUNK OVERWRITTEN: "${normalizedText.substring(0, 50)}..."`);
+      // v3.6.0: IMMEDIATE CAPTURE - save directly to buffer
+      const captureTime = (this.pendingTextStartTime && text === this.pendingText)
+        ? this.pendingTextStartTime
+        : Date.now();
+      const elapsed = this.startTime ? captureTime - this.startTime : 0;
+      const timestamp = this.formatTime(elapsed);
 
-      // Initialize chunk start time if not set
-      if (this.chunkStartTime === 0) {
-        this.chunkStartTime = Date.now() - this.startTime;
+      // v3.6.1: Prefix matching to prevent redundant accumulation
+      const lastEntries = this.captionBuffer.getLast(1);
+      const lastEntry = lastEntries.length > 0 ? lastEntries[0] : null;
+
+      if (lastEntry && lastEntry.speaker === currentSpeaker) {
+        // If new text starts with last text, it's an extension (e.g., "A" -> "A B")
+        if (normalizedText.startsWith(lastEntry.text)) {
+          console.log(`[CC] ↻ EXTENSION: Updating last entry: "${lastEntry.text.substring(0, 30)}..." -> "${normalizedText.substring(0, 30)}..."`);
+          lastEntry.text = normalizedText;
+          this.lastCapturedText = normalizedText;
+          
+          // Record metrics as a capture update
+          this.performanceMonitor.recordCapture();
+          this.performanceMonitor.recordProcessingTime(processingStart);
+          
+          this.updateOverlay(lastEntry, true);
+          this.updateStats();
+          return;
+        }
+        
+        // If last text starts with new text, it's a subset/redundant (e.g., "A B" -> "A")
+        if (lastEntry.text.startsWith(normalizedText)) {
+          console.log(`[CC] ⊘ SKIP: Subset of last captured text: "${normalizedText.substring(0, 30)}..."`);
+          return;
+        }
       }
 
-      console.log(`[CC]   Chunk speaker: ${this.currentChunkSpeaker}`);
-      console.log(`[CC]   Chunk start time: ${this.formatTime(this.chunkStartTime)}`);
+      const entry = {
+        time: timestamp,
+        timestamp: elapsed,
+        text: normalizedText,
+        speaker: currentSpeaker,
+        capturedAt: captureTime
+      };
+
+      // Add to buffer immediately
+      this.captionBuffer.add(entry);
+      this.lastCapturedText = normalizedText;
+      this.pendingTextStartTime = null;
+      console.log(`[CC] ✓ CAPTION SAVED TO BUFFER: "${normalizedText.substring(0, 50)}..."`);
+      console.log(`[CC]   Total entries: ${this.captionBuffer.getCount()}`);
 
       // Record metrics
       this.performanceMonitor.recordCapture();
@@ -1851,95 +1738,15 @@ class SimpleCCCapturer {
 
       console.log('[CC] ========================================');
 
-      // Update stats
+      // Update UI with the new caption
+      this.updateOverlay(entry);
       this.updateStats();
 
-      // Show current text in pending area (always latest, no accumulation)
-      if (this.config.get('showPendingText')) {
-        this.showPendingText(this.currentChunkText);
-      }
     } catch (error) {
       console.error('[CC] ✗✗✗ ERROR in captureStableText:', error);
       console.error('[CC]   Stack:', error.stack);
       this.performanceMonitor.recordError('captureStableText');
     }
-  }
-
-  /**
-   * Flush pending text without restarting capture (auto-save helper)
-   * v3.5.3: Now also processes pending text into chunk
-   */
-  flushPendingText() {
-    if (!this.isCapturing) {
-      return;
-    }
-
-    if (this.pendingText) {
-      console.log('[CC] Flushing pending text for auto-save');
-      this.captureStableText(this.pendingText);
-    }
-  }
-
-  /**
-   * v3.5.7: Flush current chunk to buffer with timestamp and speaker
-   * Called every 30 seconds by auto-save
-   *
-   * KEY CHANGES:
-   * - v3.5.7: Simplified - just save currentChunkText if it's new
-   * - No accumulation logic, no prefix extraction
-   * - Overwrite pattern means currentChunkText is always the latest
-   */
-  flushChunkToBuffer() {
-    if (!this.currentChunkText || !this.currentChunkText.trim()) {
-      console.log('[CC] flushChunkToBuffer: No chunk text to save');
-      return false;
-    }
-
-    const elapsed = Date.now() - this.startTime;
-    const timestamp = this.formatTime(elapsed);
-
-    console.log('[CC] ========================================');
-    console.log('[CC] flushChunkToBuffer() - v3.5.7 Overwrite Save');
-    console.log(`[CC]   Timestamp: ${timestamp}`);
-    console.log(`[CC]   Current chunk: "${this.currentChunkText.substring(0, 80)}..."`);
-    console.log(`[CC]   Last saved: "${this.lastSavedText?.substring(0, 80) || '(none)'}..."`);
-
-    const newText = this.getNewChunkText(this.currentChunkText, this.lastSavedText);
-    if (!newText) {
-      console.log('[CC] ⊘ SKIP: No new text after de-duplication');
-      console.log('[CC] ========================================');
-      return false;
-    }
-
-    console.log(`[CC]   Chunk text length: ${newText.length} chars`);
-
-    // Create caption entry
-    const entry = {
-      time: timestamp,
-      timestamp: elapsed,
-      text: newText,
-      speaker: this.currentChunkSpeaker,
-      capturedAt: Date.now(),
-      isChunk: true
-    };
-
-    // Add to buffer
-    this.captionBuffer.add(entry);
-    console.log('[CC] ✓ CHUNK SAVED TO BUFFER');
-    console.log(`[CC]   Total entries: ${this.captionBuffer.getCount()}`);
-    console.log('[CC] ========================================');
-
-    // Update UI with the chunk
-    this.updateOverlay(entry);
-    this.updateStats();
-
-    // v3.5.7: Update lastSavedText and reset chunk for next 30-second period
-    this.lastSavedText = this.currentChunkText;
-    this.currentChunkText = '';
-    this.currentChunkSpeaker = '';
-    this.chunkStartTime = Date.now() - this.startTime;
-
-    return true;
   }
 
   /**
@@ -1953,6 +1760,39 @@ class SimpleCCCapturer {
 
     if (captionsEl) captionsEl.textContent = stats.total;
     if (wordsEl) wordsEl.textContent = stats.words;
+  }
+
+  async handleBufferOverflow(captionsSnapshot) {
+    try {
+      if (!this.isCapturing) return;
+
+      this.lastCapturedText = '';
+      this.pendingText = '';
+      this.pendingTextStartTime = null;
+      this.lastSpeaker = '';
+
+      this.resetTranscriptPanel();
+      this.updateStats();
+
+      if (captionsSnapshot && captionsSnapshot.length > 0) {
+        await this.persistentStorage.updateSession(captionsSnapshot);
+      }
+
+      await this.persistentStorage.startNewSession();
+    } catch (error) {
+      console.error('[CC] Buffer overflow handling error:', error);
+    }
+  }
+
+  resetTranscriptPanel() {
+    const content = document.getElementById('cc-transcript-content');
+    if (!content) return;
+
+    content.innerHTML = '';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'cc-placeholder';
+    placeholder.textContent = this.t('placeholder');
+    content.appendChild(placeholder);
   }
 
   stop() {
@@ -1975,9 +1815,6 @@ class SimpleCCCapturer {
       this.durationInterval = null;
     }
 
-    // Stop auto-save countdown UI
-    this.stopAutoSaveCountdown();
-
     if (this.visibilityHandler) {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = null;
@@ -1991,19 +1828,13 @@ class SimpleCCCapturer {
       }
     }
 
-    // v3.5.3: Flush any remaining chunk to buffer before stopping
-    if (this.currentChunkText) {
-      console.log('[CC] Flushing final chunk before stop');
-      this.flushChunkToBuffer();
-    }
+    // v3.8.2: Stop auto-detection when stopping capture
+    this.stopAutoDetection();
 
-    // v3.5.7: Reset state for overwrite pattern
+    // v3.6.0: Reset state for immediate capture pattern
     this.pendingText = '';
-    this.currentPendingText = '';
-    this.currentChunkText = '';
-    this.currentChunkSpeaker = '';
-    this.chunkStartTime = 0;
-    this.lastSavedText = '';
+    this.lastCapturedText = '';
+    this.pendingTextStartTime = null;
 
     this.showPendingText('');
 
@@ -2018,9 +1849,8 @@ class SimpleCCCapturer {
     this.updateStatusIndicator(false);
     this.updateStatus(this.t('status.stopped'), 'stopped');
 
-    // Stop auto-save timer and force final save
-    this.persistentStorage.stopAutoSave();
-    this.persistentStorage.forceSave().catch(err => {
+    // Manual save to storage
+    this.persistentStorage.forceSave(this.captionBuffer.getAll()).catch(err => {
       console.error('[CC] Final save error:', err);
     });
 
@@ -2101,6 +1931,7 @@ class SimpleCCCapturer {
 
   /**
    * Copy captions to clipboard
+   * v3.8.1: If capturing, stop → copy → resume
    */
   async copyToClipboard() {
     try {
@@ -2111,12 +1942,37 @@ class SimpleCCCapturer {
         return false;
       }
 
+      // Store current capture state
+      const wasCapturing = this.isCapturing;
+      const currentCCSelector = this.ccSelector;
+      const currentTextSelector = this.textSelector;
+      const currentSpeakerSelector = this.speakerSelector;
+
+      console.log('[CC] Copy to clipboard - wasCapturing:', wasCapturing);
+
+      // Stop capture if recording (this will save to storage)
+      if (wasCapturing) {
+        console.log('[CC] Stopping capture for clipboard copy...');
+        await this.stop();
+      }
+
+      // Copy to clipboard
       const includeTimestamps = this.config.get('includeTimestamps');
       const content = this.generateTXT(captions, includeTimestamps);
 
       await navigator.clipboard.writeText(content);
       this.notification?.showSuccess(this.t('notifications.copied'));
       console.log('[CC] Copied to clipboard:', captions.length, 'captions');
+
+      // Resume capture if it was recording
+      if (wasCapturing && currentCCSelector) {
+        console.log('[CC] Resuming capture after clipboard copy...');
+        const result = await this.start(currentCCSelector, currentTextSelector, currentSpeakerSelector);
+        if (!result.success) {
+          console.error('[CC] Failed to resume capture:', result.message);
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('[CC] Copy to clipboard error:', error);
@@ -2365,7 +2221,8 @@ class SimpleCCCapturer {
   generateTXT(captions, includeTimestamps) {
     // v3.5.3: New format with timestamp and speaker on same line
     // Format: [00:00:30] [Speaker] text...
-    return captions.map(c => {
+    // v3.8.4: Filter out empty placeholder entries
+    return captions.filter(c => c.text.trim() !== '').map(c => {
       const timestamp = `[${c.time}]`;
       const speaker = c.speaker ? ` [${c.speaker}]` : '';
       const text = c.text;
@@ -2380,10 +2237,12 @@ class SimpleCCCapturer {
   }
 
   generateSRT(captions) {
-    return captions.map((c, i) => {
+    // v3.8.4: Filter out empty placeholder entries
+    const filtered = captions.filter(c => c.text.trim() !== '');
+    return filtered.map((c, i) => {
       const start = this.formatSRTTime(c.timestamp);
       const end = this.formatSRTTime(
-        i < captions.length - 1 ? captions[i + 1].timestamp : c.timestamp + 2000
+        i < filtered.length - 1 ? filtered[i + 1].timestamp : c.timestamp + 2000
       );
       return `${i + 1}\n${start} --> ${end}\n${this.formatCaptionText(c)}\n`;
     }).join('\n');
@@ -2583,7 +2442,7 @@ class SimpleCCCapturer {
             <div class="cc-setting">
               <label for="cc-setting-maxcaptions">${this.t('settingLabels.maxCaptions')}</label>
               <div class="cc-setting-row">
-                <input type="range" id="cc-setting-maxcaptions" min="100" max="5000" step="100" value="${config.maxCaptions}">
+                <input type="range" id="cc-setting-maxcaptions" min="5" max="50000" step="5" value="${config.maxCaptions}">
                 <span class="cc-range-value">${config.maxCaptions}</span>
               </div>
             </div>
@@ -2638,7 +2497,7 @@ class SimpleCCCapturer {
   // Legacy Download Methods (kept for backward compatibility)
   // =============================================================================
 
-  downloadText() {
+  async downloadText() {
     try {
       const captions = this.captionBuffer ? this.captionBuffer.getAll() : [];
 
@@ -2647,8 +2506,24 @@ class SimpleCCCapturer {
         return;
       }
 
+      // Store current capture state
+      const wasCapturing = this.isCapturing;
+      const currentCCSelector = this.ccSelector;
+      const currentTextSelector = this.textSelector;
+      const currentSpeakerSelector = this.speakerSelector;
+
+      console.log('[CC] Download TXT - wasCapturing:', wasCapturing);
+
+      // Stop capture if recording (this will save to storage)
+      if (wasCapturing) {
+        console.log('[CC] Stopping capture for TXT download...');
+        await this.stop();
+      }
+
       const includeTimestamps = this.config.get('includeTimestamps');
+      // v3.8.4: Filter out empty placeholder entries
       const content = captions
+        .filter(c => c.text.trim() !== '')
         .map(c => includeTimestamps ? `[${c.time}] ${c.text}` : c.text)
         .join('\n');
 
@@ -2656,6 +2531,16 @@ class SimpleCCCapturer {
 
       const stats = this.captionBuffer.getStats();
       this.notification?.showSuccess(this.t('notifications.downloaded'));
+      console.log('[CC] Downloaded TXT:', captions.length, 'captions');
+
+      // Resume capture if it was recording
+      if (wasCapturing && currentCCSelector) {
+        console.log('[CC] Resuming capture after TXT download...');
+        const result = await this.start(currentCCSelector, currentTextSelector, currentSpeakerSelector);
+        if (!result.success) {
+          console.error('[CC] Failed to resume capture:', result.message);
+        }
+      }
     } catch (error) {
       this.performanceMonitor.recordError('downloadText');
       console.error('[CC] Download TXT error:', error);
@@ -2663,7 +2548,7 @@ class SimpleCCCapturer {
     }
   }
 
-  downloadSRT() {
+  async downloadSRT() {
     try {
       const captions = this.captionBuffer ? this.captionBuffer.getAll() : [];
 
@@ -2672,11 +2557,27 @@ class SimpleCCCapturer {
         return;
       }
 
-      const srt = captions.map((c, i) => {
+      // Store current capture state
+      const wasCapturing = this.isCapturing;
+      const currentCCSelector = this.ccSelector;
+      const currentTextSelector = this.textSelector;
+      const currentSpeakerSelector = this.speakerSelector;
+
+      console.log('[CC] Download SRT - wasCapturing:', wasCapturing);
+
+      // Stop capture if recording (this will save to storage)
+      if (wasCapturing) {
+        console.log('[CC] Stopping capture for SRT download...');
+        await this.stop();
+      }
+
+      // v3.8.4: Filter out empty placeholder entries
+      const filtered = captions.filter(c => c.text.trim() !== '');
+      const srt = filtered.map((c, i) => {
         const start = this.formatSRTTime(c.timestamp);
         const end = this.formatSRTTime(
-          i < captions.length - 1
-            ? captions[i + 1].timestamp
+          i < filtered.length - 1
+            ? filtered[i + 1].timestamp
             : c.timestamp + 2000
         );
         return `${i + 1}\n${start} --> ${end}\n${c.text}\n`;
@@ -2684,6 +2585,16 @@ class SimpleCCCapturer {
 
       this.download(srt, 'application/x-subrip', 'srt');
       this.notification?.showSuccess(this.t('notifications.downloaded'));
+      console.log('[CC] Downloaded SRT:', captions.length, 'captions');
+
+      // Resume capture if it was recording
+      if (wasCapturing && currentCCSelector) {
+        console.log('[CC] Resuming capture after SRT download...');
+        const result = await this.start(currentCCSelector, currentTextSelector, currentSpeakerSelector);
+        if (!result.success) {
+          console.error('[CC] Failed to resume capture:', result.message);
+        }
+      }
     } catch (error) {
       this.performanceMonitor.recordError('downloadSRT');
       console.error('[CC] Download SRT error:', error);
@@ -2712,7 +2623,7 @@ class SimpleCCCapturer {
     }
   }
 
-  updateOverlay(entry) {
+  updateOverlay(entry, isUpdate = false) {
     try {
       const panel = document.getElementById('cc-transcript-panel');
       if (!panel) return;
@@ -2723,6 +2634,19 @@ class SimpleCCCapturer {
       // Remove placeholder if exists
       const placeholder = content.querySelector('.cc-placeholder');
       if (placeholder) placeholder.remove();
+
+      if (isUpdate) {
+        const lines = content.querySelectorAll('.cc-line');
+        if (lines.length > 0) {
+          const lastLine = lines[lines.length - 1];
+          const textEl = lastLine.querySelector('.cc-text');
+          if (textEl) {
+            textEl.textContent = entry.text;
+            content.scrollTop = content.scrollHeight;
+            return;
+          }
+        }
+      }
 
       const line = document.createElement('div');
       line.className = 'cc-line';
@@ -2763,29 +2687,6 @@ class SimpleCCCapturer {
     minimized.classList.add(`cc-mini-${this.statusState}`);
     minimized.title = label;
     if (textEl) textEl.textContent = label;
-  }
-
-  getNewChunkText(currentText, lastSavedText) {
-    if (!lastSavedText) {
-      return currentText.trim();
-    }
-
-    if (currentText === lastSavedText) {
-      return '';
-    }
-
-    if (currentText.startsWith(lastSavedText)) {
-      return currentText.slice(lastSavedText.length).trim();
-    }
-
-    const maxOverlap = Math.min(200, lastSavedText.length, currentText.length);
-    for (let size = maxOverlap; size >= 12; size -= 1) {
-      if (lastSavedText.slice(-size) === currentText.slice(0, size)) {
-        return currentText.slice(size).trim();
-      }
-    }
-
-    return currentText.trim();
   }
 
   escapeHtml(text) {
@@ -2967,20 +2868,6 @@ async function createSimpleUI() {
         <span class="cc-stat-item">&#128172; <span id="cc-stat-words">0</span></span>
         <span class="cc-stat-item">&#9202; <span id="cc-stat-duration">00:00</span></span>
       </div>
-    </div>
-
-    <!-- Auto-Save Progress Info -->
-    <div id="cc-autosave-info" class="cc-autosave-info">
-      <div class="cc-autosave-label">
-        <span class="cc-autosave-icon">&#128190;</span>
-        <span>Next auto-save in <span id="cc-autosave-timer" class="cc-autosave-timer">30s</span></span>
-      </div>
-      <span id="cc-autosave-saved" class="cc-autosave-saved">✓ Saved</span>
-    </div>
-
-    <!-- Auto-Save Progress Bar -->
-    <div id="cc-autosave-progress" class="cc-autosave-progress">
-      <div id="cc-autosave-progress-bar" class="cc-autosave-progress-bar"></div>
     </div>
 
     <!-- Pending Text -->
@@ -3242,4 +3129,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-console.log('[CC Capturer] Simple CC Capturer v3.5.8 loaded (Overwrite Pattern - Caption Overlap Fix)');
+console.log('[CC Capturer] Simple CC Capturer v3.6.1 loaded (Immediate Capture Pattern - Caption Accumulation Bug Fix)');

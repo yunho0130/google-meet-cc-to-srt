@@ -140,8 +140,6 @@ const historyDetailView = document.getElementById('history-detail-view');
 
 const startBtn = document.getElementById('start-btn');
 const stopBtn = document.getElementById('stop-btn');
-const downloadTxtBtn = document.getElementById('download-txt');
-const downloadSrtBtn = document.getElementById('download-srt');
 const historyBtn = document.getElementById('history-btn');
 const statusEl = document.getElementById('status');
 const countEl = document.getElementById('count');
@@ -378,38 +376,6 @@ async function stopCapture() {
   }
 }
 
-/**
- * Download as text
- */
-async function downloadText() {
-  try {
-    downloadTxtBtn.disabled = true;
-    await sendToTab({ type: MessageTypes.DOWNLOAD_TEXT });
-    showAlert(t('alerts.txtDownloaded'), 'success');
-  } catch (error) {
-    console.error('Download failed:', error);
-    showAlert(error.message || t('alerts.downloadFailed'), 'error');
-  } finally {
-    downloadTxtBtn.disabled = false;
-  }
-}
-
-/**
- * Download as SRT
- */
-async function downloadSRT() {
-  try {
-    downloadSrtBtn.disabled = true;
-    await sendToTab({ type: MessageTypes.DOWNLOAD_SRT });
-    showAlert(t('alerts.srtDownloaded'), 'success');
-  } catch (error) {
-    console.error('Download failed:', error);
-    showAlert(error.message || t('alerts.downloadFailed'), 'error');
-  } finally {
-    downloadSrtBtn.disabled = false;
-  }
-}
-
 // =============================================================================
 // View Navigation
 // =============================================================================
@@ -420,6 +386,20 @@ function showView(viewId) {
   historyDetailView.classList.remove('active');
 
   document.getElementById(viewId).classList.add('active');
+
+  // Auto-resize popup
+  setTimeout(autoResizePopup, 50);
+}
+
+/**
+ * Auto-resize popup to fit content
+ */
+function autoResizePopup() {
+  const activeView = document.querySelector('.view.active');
+  if (!activeView) return;
+
+  const height = activeView.scrollHeight;
+  document.body.style.height = height + 'px';
 }
 
 // =============================================================================
@@ -749,8 +729,6 @@ function escapeHtml(text) {
 // Main controls
 startBtn.addEventListener('click', startCapture);
 stopBtn.addEventListener('click', stopCapture);
-downloadTxtBtn.addEventListener('click', downloadText);
-downloadSrtBtn.addEventListener('click', downloadSRT);
 
 // Guide toggle
 guideHeader.addEventListener('click', toggleGuide);
@@ -790,6 +768,7 @@ async function init() {
   await restoreGuideState();
   await loadLanguage();
   updateStatus();
+  autoResizePopup();
 }
 
 init();
