@@ -15,7 +15,7 @@ _Your support helps maintain and improve this extension._
 
 [Download Latest Release](#installation) • [Features](#features) • [Usage Guide](#usage) • [Documentation](CLAUDE.md)
 
-![Version](https://img.shields.io/badge/version-3.8.9-blue.svg)
+![Version](https://img.shields.io/badge/version-3.9.0-blue.svg)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
 
 </div>
@@ -49,6 +49,13 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 - 🎤 **Speaker name detection** (optional)
 - 🔄 **Smart deduplication** to prevent repeated text
 - 📊 **Real-time statistics** (caption count, word count, duration)
+
+### v3.9.0 Highlights
+
+- 🖱️ **Draggable Overlay Panel** - Move the capture panel anywhere by dragging the header
+- 💾 **Position Memory** - Panel position is saved and restored across sessions
+- 📱 **Touch Support** - Works with mouse and touch devices
+- ✋ **Smart Drag Handle** - Only header area is draggable, buttons remain clickable
 
 ### v3.8.9 Highlights
 

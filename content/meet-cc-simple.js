@@ -3252,6 +3252,62 @@ async function createSimpleUI() {
     await setMinimizedState(false);
   });
 
+  // v3.9.0: Drag main overlay panel by header
+  const overlay = document.getElementById('cc-overlay');
+  const header = overlay.querySelector('.cc-header');
+
+  let isOverlayDragging = false;
+  let overlayDragOffsetX = 0;
+  let overlayDragOffsetY = 0;
+
+  const onOverlayDragStart = (event) => {
+    // Only drag when clicking on header (not on buttons)
+    if (event.target.closest('button')) return;
+
+    const point = event.touches ? event.touches[0] : event;
+    isOverlayDragging = true;
+    overlay.classList.add('dragging');
+    overlayDragOffsetX = point.clientX - overlay.offsetLeft;
+    overlayDragOffsetY = point.clientY - overlay.offsetTop;
+  };
+
+  const onOverlayDragMove = (event) => {
+    if (!isOverlayDragging) return;
+    const point = event.touches ? event.touches[0] : event;
+    const left = Math.max(8, Math.min(window.innerWidth - overlay.offsetWidth - 8, point.clientX - overlayDragOffsetX));
+    const top = Math.max(8, Math.min(window.innerHeight - overlay.offsetHeight - 8, point.clientY - overlayDragOffsetY));
+    overlay.style.left = `${left}px`;
+    overlay.style.top = `${top}px`;
+    overlay.style.right = 'auto';
+    overlay.style.bottom = 'auto';
+  };
+
+  const onOverlayDragEnd = async () => {
+    if (!isOverlayDragging) return;
+    isOverlayDragging = false;
+    overlay.classList.remove('dragging');
+    await capturer.config.save('overlayPosition', {
+      x: overlay.offsetLeft,
+      y: overlay.offsetTop
+    });
+  };
+
+  header.addEventListener('mousedown', onOverlayDragStart);
+  header.addEventListener('touchstart', onOverlayDragStart, { passive: true });
+  window.addEventListener('mousemove', onOverlayDragMove);
+  window.addEventListener('touchmove', onOverlayDragMove, { passive: true });
+  window.addEventListener('mouseup', onOverlayDragEnd);
+  window.addEventListener('touchend', onOverlayDragEnd);
+
+  // Restore overlay position if saved
+  const savedOverlayPos = await capturer.config.get('overlayPosition');
+  if (savedOverlayPos && savedOverlayPos.x !== undefined) {
+    overlay.style.left = `${savedOverlayPos.x}px`;
+    overlay.style.top = `${savedOverlayPos.y}px`;
+    overlay.style.right = 'auto';
+    overlay.style.bottom = 'auto';
+  }
+
   // Drag minimized icon
   let isDragging = false;
   let dragOffsetX = 0;

@@ -17,7 +17,7 @@ When you make changes to the codebase:
 
 **Google Meet CC Capturer** is a Chrome extension (Manifest V3) that captures Google Meet's built-in closed captions without requiring any API calls.
 
-### Current Version: 3.8.9
+### Current Version: 3.9.0
 
 **Key Features:**
 - **Real-time caption capture** from Google Meet closed captions
@@ -195,6 +195,14 @@ if (this.captions.length > this.maxSize) {
 ```
 
 ## Version History Summary
+
+### v3.9.0 - Draggable Overlay Panel (2025-12-26)
+- Added drag functionality to main overlay panel via header
+- Position is saved to `overlayPosition` config and restored on reload
+- Header acts as drag handle with cursor: grab/grabbing
+- Buttons in header remain clickable (drag excluded for button clicks)
+- Touch support for mobile devices
+- CSS classes: `.draggable`, `.dragging` for visual feedback
 
 ### v3.8.9 - Per-Speaker Duplicate Prevention (2025-12-26)
 - Fixed duplicate caption issue where same text was saved multiple times
