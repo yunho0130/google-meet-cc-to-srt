@@ -1059,7 +1059,14 @@ class SimpleCCCapturer {
     this.debounceTimer = null;
     this.lastSpeaker = '';
     this.pendingText = '';
+    this.pendingSpeaker = '';
     this.pendingTextStartTime = null;
+
+    // v3.8.8: Track each speaker's current caption state
+    // Map of speaker -> { text, startTime, timer, captured }
+    this.speakerStates = new Map();
+    // Track last captured text per speaker to prevent duplicates
+    this.speakerLastCaptured = new Map();
 
     // v3.6.0: Immediate capture pattern
     // Track last captured text to prevent exact duplicates
@@ -1291,27 +1298,66 @@ class SimpleCCCapturer {
     let text = '';
     let speaker = '';
 
+    // First, try to extract the current speaker name from the DOM
+    // The speaker element is typically a sibling of the text element
     if (this.speakerSelector) {
       try {
+        // Try to find speaker within the caption container
         const speakerEl = element.querySelector(this.speakerSelector);
         if (speakerEl) {
-          speaker = speakerEl.textContent?.trim() || '';
-          if (this.isUIText(speaker)) {
-            speaker = '';
+          const extractedSpeaker = speakerEl.textContent?.trim() || '';
+          // Validate it's not UI text
+          if (extractedSpeaker && !this.isUIText(extractedSpeaker)) {
+            speaker = extractedSpeaker;
           }
         }
       } catch (e) {
         // Ignore speaker extraction errors
       }
     }
-    if (this.includeSpeakerName) {
-      if (speaker) {
-        this.lastSpeaker = speaker;
-      } else if (this.speakerSelector) {
-        this.lastSpeaker = '';
+
+    // Also try alternative speaker selectors if primary didn't work
+    if (!speaker && this.includeSpeakerName) {
+      try {
+        // Google Meet may use different selectors for speaker name
+        const altSpeakerSelectors = [
+          '.NWpY1d',           // Primary selector
+          '.zQRpq',            // Alternative
+          '.iOzk7',            // Another alternative
+          '[data-self-name]', // Self name attribute
+          '.lRwCcd'            // Caption container speaker
+        ];
+
+        for (const selector of altSpeakerSelectors) {
+          const speakerEl = element.querySelector(selector);
+          if (speakerEl) {
+            const extractedSpeaker = speakerEl.textContent?.trim() || '';
+            // Make sure it's not the same as caption text (speaker names are usually short)
+            if (extractedSpeaker && extractedSpeaker.length < 50 && !this.isUIText(extractedSpeaker)) {
+              // Check if this looks like a speaker name (short, not the main caption)
+              const captionTextEl = element.querySelector(textSelector || '.ygicle.VbkSUe');
+              const captionText = captionTextEl ? captionTextEl.textContent?.trim() : '';
+              // Speaker should be different from caption text
+              if (extractedSpeaker !== captionText) {
+                speaker = extractedSpeaker;
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore alternative speaker extraction errors
       }
     }
 
+    // Update lastSpeaker if we found a speaker
+    if (this.includeSpeakerName) {
+      if (speaker) {
+        this.lastSpeaker = speaker;
+      }
+    }
+
+    // Extract caption text
     if (textSelector) {
       try {
         const textElements = element.querySelectorAll(textSelector);
@@ -1319,6 +1365,10 @@ class SimpleCCCapturer {
           text = Array.from(textElements)
             .filter(el => {
               try {
+                // Skip speaker name elements from caption text
+                if (this.speakerSelector && el.matches(this.speakerSelector)) {
+                  return false;
+                }
                 return !el.closest('.IMKgW');
               } catch (e) {
                 return true;
@@ -1336,6 +1386,11 @@ class SimpleCCCapturer {
     if (!text) {
       try {
         const clone = element.cloneNode(true);
+        // Remove speaker elements from clone
+        if (this.speakerSelector) {
+          const speakerEls = clone.querySelectorAll(this.speakerSelector);
+          speakerEls.forEach(el => el.remove());
+        }
         const uiButtons = clone.querySelectorAll('.IMKgW');
         uiButtons.forEach(btn => btn.remove());
         text = clone.textContent?.trim() || '';
@@ -1350,11 +1405,9 @@ class SimpleCCCapturer {
       return '';
     }
 
-    if (speaker && text && this.includeSpeakerName) {
-      text = `[${speaker}] ${text}`;
-    }
-
-    return text;
+    // v3.8.6: Return both text and speaker separately
+    // The caller will handle formatting with speaker name
+    return { text, speaker };
   }
 
   /**
@@ -1426,8 +1479,13 @@ class SimpleCCCapturer {
     // v3.6.0: Reset state for immediate capture pattern
     this.lastSpeaker = '';
     this.pendingText = '';
+    this.pendingSpeaker = '';
     this.lastCapturedText = '';
     this.pendingTextStartTime = null;
+
+    // v3.8.8: Clear all speaker states
+    this.clearAllSpeakerStates();
+    this.clearSpeakerLastCaptured();
 
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -1572,48 +1630,184 @@ class SimpleCCCapturer {
         console.log('[CC] Tab is hidden (background capture active)');
       }
 
-      console.log('[CC]   Calling extractCaptionText()...');
-      const currentText = this.extractCaptionText(this.ccElement, this.textSelector);
-      console.log('[CC]   Extracted text:', currentText ? `"${currentText.substring(0, 100)}"` : 'NULL/EMPTY');
+      // v3.8.7: Google Meet's actual structure: multiple .nMcdL.bj4p3b elements
+      // Each element contains: speaker name (.NWpY1d) + caption text (.ygicle.VbkSUe)
+      const captionItems = this.ccElement.querySelectorAll('.nMcdL.bj4p3b');
+      console.log('[CC]   Found caption items:', captionItems.length);
 
-      if (!currentText) {
-        console.log('[CC] ⊘ No text extracted, clearing pending');
-        if (this.config.get('showPendingText')) {
-          this.showPendingText('');
+      if (captionItems.length === 0) {
+        // Fallback: try legacy single-element extraction
+        const extracted = this.extractCaptionText(this.ccElement, this.textSelector);
+        let currentText = '';
+        let currentSpeaker = '';
+
+        if (typeof extracted === 'object' && extracted !== null) {
+          currentText = extracted.text || '';
+          currentSpeaker = extracted.speaker || '';
+        } else if (typeof extracted === 'string') {
+          currentText = extracted;
         }
-        this.pendingText = '';
-        this.pendingTextStartTime = null;
+
+        if (!currentText) {
+          console.log('[CC] ⊘ No text extracted, clearing pending');
+          if (this.config.get('showPendingText')) {
+            this.showPendingText('');
+          }
+          this.clearAllSpeakerStates();
+          return;
+        }
+
+        this.processSpeakerCaption(currentSpeaker, currentText);
         return;
       }
 
-      const isNewPendingText = currentText !== this.pendingText;
-      if (isNewPendingText) {
-        this.pendingTextStartTime = Date.now();
-      }
-      this.pendingText = currentText;
-      console.log('[CC] ✓ Set pendingText:', `"${currentText.substring(0, 50)}..."`);
+      // Process each caption item (each speaker's latest caption)
+      const allCaptions = [];
+      const currentSpeakers = new Set();
 
+      captionItems.forEach((item, index) => {
+        // Extract speaker name
+        const speakerEl = item.querySelector('.NWpY1d');
+        const speaker = speakerEl ? speakerEl.textContent?.trim() : '';
+
+        // Extract caption text
+        const textEl = item.querySelector('.ygicle.VbkSUe');
+        const text = textEl ? textEl.textContent?.trim() : '';
+
+        if (text) {
+          allCaptions.push({ speaker, text });
+          currentSpeakers.add(speaker || '');
+          console.log(`[CC]   Item ${index}: speaker="${speaker}", text="${text.substring(0, 30)}..."`);
+        }
+      });
+
+      if (allCaptions.length === 0) {
+        console.log('[CC] ⊘ No valid captions found');
+        return;
+      }
+
+      // v3.8.7: Process each speaker's caption separately
+      allCaptions.forEach(caption => {
+        this.processSpeakerCaption(caption.speaker, caption.text);
+      });
+
+      // Remove states for speakers who are no longer speaking
+      this.cleanupInactiveSpeakers(currentSpeakers);
+
+      // Update pending area to show all active speakers
       if (this.config.get('showPendingText')) {
-        this.showPendingText(currentText);
-        console.log('[CC] ✓ Displayed pending text in UI');
+        const allPendingText = allCaptions.map(c => {
+          return c.speaker && this.includeSpeakerName
+            ? `[${c.speaker}] ${c.text}`
+            : c.text;
+        }).join('\n');
+        this.showPendingText(allPendingText);
       }
 
-      if (this.debounceTimer) {
-        console.log('[CC] Clearing existing debounce timer');
-        clearTimeout(this.debounceTimer);
-      }
-
-      console.log(`[CC] Setting debounce timer (${this.DEBOUNCE_DELAY}ms)...`);
-      this.debounceTimer = setTimeout(() => {
-        console.log('[CC] Debounce timer fired! Calling captureStableText()...');
-        this.captureStableText(this.pendingText);
-      }, this.DEBOUNCE_DELAY);
       console.log('[CC] ------- processCaptionUpdate() END -------');
     } catch (error) {
       console.error('[CC] ✗✗✗ ERROR in processCaptionUpdate:', error);
       console.error('[CC]   Stack:', error.stack);
       this.performanceMonitor.recordError('processCaptionUpdate');
     }
+  }
+
+  /**
+   * v3.8.8: Process a single speaker's caption with per-speaker debouncing
+   * Each speaker gets their own debounce timer and state tracking
+   */
+  processSpeakerCaption(speaker, text) {
+    const speakerKey = speaker || '(unknown)';
+
+    console.log(`[CC] Processing speaker "${speakerKey}": "${text.substring(0, 30)}..."`);
+
+    // Check if this text was already captured for this speaker (duplicate prevention)
+    const lastCaptured = this.speakerLastCaptured.get(speakerKey);
+    if (lastCaptured === text) {
+      console.log(`[CC] ⊘ SKIP: "${speakerKey}" already captured this text`);
+      // Still update the state but don't set timer for duplicate
+      const state = this.speakerStates.get(speakerKey);
+      if (state && state.timer) {
+        clearTimeout(state.timer);
+        state.timer = null;
+      }
+      return;
+    }
+
+    // Get or create state for this speaker
+    let state = this.speakerStates.get(speakerKey);
+    const isNewText = !state || state.text !== text;
+
+    if (isNewText) {
+      // Text changed - update state and reset/start debounce timer
+      if (state && state.timer) {
+        clearTimeout(state.timer);
+      }
+
+      state = {
+        text: text,
+        speaker: speaker,
+        startTime: Date.now(),
+        captured: false
+      };
+      this.speakerStates.set(speakerKey, state);
+
+      // Set debounce timer for this speaker
+      state.timer = setTimeout(() => {
+        console.log(`[CC] ✅ Stable caption for "${speakerKey}": "${text.substring(0, 30)}..."`);
+        this.captureStableText(text, speaker);
+
+        // Mark as captured and update last captured text for this speaker
+        state.captured = true;
+        this.speakerLastCaptured.set(speakerKey, text);
+      }, this.DEBOUNCE_DELAY);
+    }
+  }
+
+  /**
+   * v3.8.8: Clean up states for speakers who are no longer in the caption list
+   * This flushes any pending captions for inactive speakers (only if not already captured)
+   */
+  cleanupInactiveSpeakers(currentSpeakers) {
+    for (const [speakerKey, state] of this.speakerStates.entries()) {
+      if (!currentSpeakers.has(speakerKey) && state.timer) {
+        // Speaker is no longer active - check if we need to flush
+        const lastCaptured = this.speakerLastCaptured.get(speakerKey);
+
+        if (state.text !== lastCaptured) {
+          // Only flush if this text hasn't been captured yet
+          console.log(`[CC] Flushing inactive speaker "${speakerKey}": "${state.text.substring(0, 30)}..."`);
+          clearTimeout(state.timer);
+          this.captureStableText(state.text, state.speaker);
+          this.speakerLastCaptured.set(speakerKey, state.text);
+        } else {
+          console.log(`[CC] Skipping flush for "${speakerKey}" - already captured`);
+          clearTimeout(state.timer);
+        }
+        this.speakerStates.delete(speakerKey);
+      }
+    }
+  }
+
+  /**
+   * v3.8.8: Clear all speaker states (used when stopping capture or no captions found)
+   */
+  clearAllSpeakerStates() {
+    for (const [speakerKey, state] of this.speakerStates.entries()) {
+      if (state.timer) {
+        clearTimeout(state.timer);
+      }
+    }
+    this.speakerStates.clear();
+    // Don't clear speakerLastCaptured - we want to keep it for duplicate prevention
+    // across start/stop cycles (user might want to resume capturing)
+  }
+
+  /**
+   * v3.8.8: Clear speaker last captured map (only when explicitly resetting)
+   */
+  clearSpeakerLastCaptured() {
+    this.speakerLastCaptured.clear();
   }
 
   showPendingText(text) {
@@ -1636,7 +1830,7 @@ class SimpleCCCapturer {
   }
 
   /**
-   * Capture stable text after debounce (v3.6.0 - immediate capture pattern)
+   * Capture stable text after debounce (v3.8.6 - speaker-aware capture)
    *
    * Key changes (v3.6.0):
    * - IMMEDIATE capture to captionBuffer (no volatile chunk storage)
@@ -1644,18 +1838,25 @@ class SimpleCCCapturer {
    * - Simple exact-match duplicate check against lastCapturedText
    * - No caption loss, all distinct captions preserved
    *
+   * v3.8.6 changes:
+   * - Speaker name is stored separately from text (not embedded in text field)
+   * - Duplicate check is based on text only (speaker excluded)
+   * - Speaker change always creates new entry with fresh timestamp
+   * - Format: [timestamp][speaker] text
+   *
    * Philosophy (v3.6.0):
    * - Current = UI display only (volatile)
    * - Buffer = permanent during session (all captions saved immediately)
    * - Storage = persistence across reloads (configurable auto-save)
    */
-  captureStableText(text) {
+  captureStableText(text, speaker) {
     const processingStart = Date.now();
 
     try {
       console.log('[CC] ========================================');
-      console.log('[CC] captureStableText() called (v3.6.0 immediate capture)');
+      console.log('[CC] captureStableText() called (v3.8.6 speaker-aware capture)');
       console.log('[CC]   Input text:', text ? `"${text.substring(0, 100)}"` : 'NULL/EMPTY');
+      console.log('[CC]   Input speaker:', speaker || '(none)');
       console.log('[CC]   isCapturing:', this.isCapturing);
 
       // Basic validation
@@ -1670,15 +1871,17 @@ class SimpleCCCapturer {
       }
 
       const normalizedText = text.trim();
-      const currentSpeaker = this.includeSpeakerName ? this.lastSpeaker : '';
+      // v3.8.6: Use the provided speaker parameter, or fall back to lastSpeaker
+      const currentSpeaker = speaker || (this.includeSpeakerName ? this.lastSpeaker : '');
 
       console.log('[CC]   Normalized:', `"${normalizedText.substring(0, 100)}"`);
       console.log('[CC]   Last captured:', `"${this.lastCapturedText.substring(0, 100)}"`);
       console.log('[CC]   Current speaker:', currentSpeaker || '(none)');
 
-      // Skip if exact duplicate of last captured text
+      // v3.8.6: Skip if exact duplicate of last captured TEXT (excluding speaker)
+      // This ensures duplicate detection works correctly regardless of speaker
       if (normalizedText === this.lastCapturedText) {
-        console.log('[CC] ⊘ SKIP: exact duplicate of last captured');
+        console.log('[CC] ⊘ SKIP: exact duplicate of last captured text');
         this.performanceMonitor.recordDuplicate();
         return;
       }
@@ -1694,22 +1897,28 @@ class SimpleCCCapturer {
       const lastEntries = this.captionBuffer.getLast(1);
       const lastEntry = lastEntries.length > 0 ? lastEntries[0] : null;
 
-      if (lastEntry && lastEntry.speaker === currentSpeaker) {
+      // v3.8.6: Enhanced speaker change detection - always create new entry when speaker differs
+      if (lastEntry && lastEntry.speaker !== currentSpeaker) {
+        console.log(`[CC] 🎤 SPEAKER CHANGE: "${lastEntry.speaker || '(none)'}" -> "${currentSpeaker || '(none)'}"`);
+        console.log(`[CC]   Creating new entry with timestamp ${timestamp}`);
+        // Don't do prefix matching or text comparison - fall through to create new entry
+      } else if (lastEntry && lastEntry.speaker === currentSpeaker) {
+        // Only do prefix matching when speakers are the SAME
         // If new text starts with last text, it's an extension (e.g., "A" -> "A B")
         if (normalizedText.startsWith(lastEntry.text)) {
           console.log(`[CC] ↻ EXTENSION: Updating last entry: "${lastEntry.text.substring(0, 30)}..." -> "${normalizedText.substring(0, 30)}..."`);
           lastEntry.text = normalizedText;
           this.lastCapturedText = normalizedText;
-          
+
           // Record metrics as a capture update
           this.performanceMonitor.recordCapture();
           this.performanceMonitor.recordProcessingTime(processingStart);
-          
+
           this.updateOverlay(lastEntry, true);
           this.updateStats();
           return;
         }
-        
+
         // If last text starts with new text, it's a subset/redundant (e.g., "A B" -> "A")
         if (lastEntry.text.startsWith(normalizedText)) {
           console.log(`[CC] ⊘ SKIP: Subset of last captured text: "${normalizedText.substring(0, 30)}..."`);
@@ -1730,6 +1939,7 @@ class SimpleCCCapturer {
       this.lastCapturedText = normalizedText;
       this.pendingTextStartTime = null;
       console.log(`[CC] ✓ CAPTION SAVED TO BUFFER: "${normalizedText.substring(0, 50)}..."`);
+      console.log(`[CC]   Speaker: ${currentSpeaker || '(none)'}`);
       console.log(`[CC]   Total entries: ${this.captionBuffer.getCount()}`);
 
       // Record metrics
@@ -1768,8 +1978,13 @@ class SimpleCCCapturer {
 
       this.lastCapturedText = '';
       this.pendingText = '';
+      this.pendingSpeaker = '';
       this.pendingTextStartTime = null;
       this.lastSpeaker = '';
+
+      // v3.8.8: Clear all speaker states
+      this.clearAllSpeakerStates();
+      this.clearSpeakerLastCaptured();
 
       this.resetTranscriptPanel();
       this.updateStats();
@@ -1828,11 +2043,24 @@ class SimpleCCCapturer {
       }
     }
 
+    // v3.8.7: Flush all pending speaker captions before stopping
+    for (const [speakerKey, state] of this.speakerStates.entries()) {
+      if (state.timer) {
+        clearTimeout(state.timer);
+      }
+      if (state.text) {
+        console.log(`[CC] Flushing speaker "${speakerKey}" on stop: "${state.text.substring(0, 30)}..."`);
+        this.captureStableText(state.text, state.speaker);
+      }
+    }
+    this.clearAllSpeakerStates();
+
     // v3.8.2: Stop auto-detection when stopping capture
     this.stopAutoDetection();
 
     // v3.6.0: Reset state for immediate capture pattern
     this.pendingText = '';
+    this.pendingSpeaker = '';
     this.lastCapturedText = '';
     this.pendingTextStartTime = null;
 
@@ -2641,7 +2869,9 @@ class SimpleCCCapturer {
           const lastLine = lines[lines.length - 1];
           const textEl = lastLine.querySelector('.cc-text');
           if (textEl) {
-            textEl.textContent = entry.text;
+            // v3.8.6: Update with speaker name if available
+            const displayText = this.formatCaptionWithSpeaker(entry);
+            textEl.textContent = displayText;
             content.scrollTop = content.scrollHeight;
             return;
           }
@@ -2650,7 +2880,10 @@ class SimpleCCCapturer {
 
       const line = document.createElement('div');
       line.className = 'cc-line';
-      line.innerHTML = `<span class="cc-time">[${entry.time}]</span> <span class="cc-text">${this.escapeHtml(entry.text)}</span>`;
+
+      // v3.8.6: Format: [timestamp][speaker] text
+      const displayText = this.formatCaptionWithSpeaker(entry);
+      line.innerHTML = `<span class="cc-time">[${entry.time}]</span> ${entry.speaker ? `<span class="cc-speaker">[${this.escapeHtml(entry.speaker)}]</span>` : ''}<span class="cc-text">${this.escapeHtml(entry.text)}</span>`;
 
       content.appendChild(line);
       content.scrollTop = content.scrollHeight;
@@ -2658,6 +2891,16 @@ class SimpleCCCapturer {
       this.performanceMonitor.recordError('updateOverlay');
       console.error('[CC] Overlay update error:', error);
     }
+  }
+
+  /**
+   * v3.8.6: Format caption text with speaker name for display
+   */
+  formatCaptionWithSpeaker(entry) {
+    if (entry.speaker && this.includeSpeakerName) {
+      return `[${entry.speaker}] ${entry.text}`;
+    }
+    return entry.text;
   }
 
   updateStatus(text, state) {
@@ -2929,11 +3172,12 @@ async function createSimpleUI() {
     if (content) {
       // Clear placeholder
       content.innerHTML = '';
-      // Add restored captions
+      // Add restored captions with speaker names
       capturer.captionBuffer.getAll().forEach(entry => {
         const line = document.createElement('div');
         line.className = 'cc-line';
-        line.innerHTML = `<span class="cc-time">[${entry.time}]</span> <span class="cc-text">${capturer.escapeHtml(entry.text)}</span>`;
+        // v3.8.6: Format: [timestamp][speaker] text
+        line.innerHTML = `<span class="cc-time">[${entry.time}]</span> ${entry.speaker ? `<span class="cc-speaker">[${capturer.escapeHtml(entry.speaker)}]</span>` : ''}<span class="cc-text">${capturer.escapeHtml(entry.text)}</span>`;
         content.appendChild(line);
       });
       content.scrollTop = content.scrollHeight;

@@ -477,6 +477,17 @@
   margin-right: 8px;
 }
 
+/* v3.8.6: Speaker name styling */
+.cc-speaker {
+  color: #fbbc04;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 6px;
+  padding: 2px 6px;
+  background: rgba(251, 188, 4, 0.15);
+  border-radius: 4px;
+}
+
 .cc-text {
   color: #e8eaed;
 }

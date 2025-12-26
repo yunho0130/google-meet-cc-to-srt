@@ -15,7 +15,7 @@ _Your support helps maintain and improve this extension._
 
 [Download Latest Release](#installation) • [Features](#features) • [Usage Guide](#usage) • [Documentation](CLAUDE.md)
 
-![Version](https://img.shields.io/badge/version-3.8.4-blue.svg)
+![Version](https://img.shields.io/badge/version-3.8.9-blue.svg)
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green.svg)
 
 </div>
@@ -49,6 +49,36 @@ Google Meet CC Capturer is a lightweight Chrome extension that captures Google M
 - 🎤 **Speaker name detection** (optional)
 - 🔄 **Smart deduplication** to prevent repeated text
 - 📊 **Real-time statistics** (caption count, word count, duration)
+
+### v3.8.9 Highlights
+
+- ✅ **Duplicate Prevention Fix** - Per-speaker duplicate tracking prevents same caption from being saved multiple times
+- 🎯 **Smart Flush Logic** - `cleanupInactiveSpeakers()` now checks if caption was already captured before flushing
+- 🔄 **Simultaneous Speech Support** - Handles multiple speakers talking at the same time correctly
+- 📊 **Enhanced State Management** - Added `speakerLastCaptured` Map for per-speaker duplicate detection
+
+### v3.8.8 Highlights
+
+- 🎤 **Per-Speaker State Tracking** - Each speaker now has their own debounce timer and state
+- 💾 **Multi-Speaker Save Fix** - All speakers' captions are now properly saved (not just the last one)
+- 🔄 **Auto-Flush on Speaker Change** - When a speaker stops talking, their pending caption is immediately saved
+- ✅ **Stop Button Flush** - All pending captions from all speakers are saved when stopping capture
+- 📊 **Map-Based Speaker Management** - Efficient tracking using Map data structure
+
+### v3.8.7 Highlights
+
+- 🎤 **Multi-Speaker Detection Fix** - Now correctly detects multiple `.nMcdL.bj4p3b` elements
+- 🔍 **DOM Structure Match** - Aligned with Google Meet's actual HTML: `.NWpY1d` (speaker) + `.ygicle.VbkSUe` (text)
+- 📝 **Multi-Line Pending Display** - Shows all active speakers in pending area
+- 🔄 **Fallback Support** - Graceful fallback for legacy caption structures
+
+### v3.8.6 Highlights
+
+- 🎤 **Speaker Separation Fix** - Speaker names now correctly detected and separated from caption text
+- 📝 **Format: `[timestamp][speaker] text`** - Clean format with proper speaker identification
+- 🔧 **Improved Duplicate Detection** - Duplicate check based on text only (speaker excluded)
+- 🌐 **Multi-Speaker Support** - Different speakers create new entries with fresh timestamps
+- 🎨 **Visual Speaker Tags** - Yellow background badge for speaker names in transcript view
 
 ### v3.8.4 Highlights
 
@@ -371,6 +401,15 @@ That's it! No microphone, no camera, no tracking.
 ---
 
 ## 📊 Version History
+
+### v3.8.5 - Speaker Separation Fix
+
+**Changes:**
+
+- Fixed speaker change detection to create new entries with fresh timestamps
+- Added explicit speaker comparison: when speakers differ, always create new entry
+- Prevents text accumulation across different speakers
+- Improved line breaks and timestamps for multi-speaker meetings
 
 ### v3.8.4 - Empty Placeholder Fix
 

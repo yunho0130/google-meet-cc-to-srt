@@ -17,7 +17,7 @@ When you make changes to the codebase:
 
 **Google Meet CC Capturer** is a Chrome extension (Manifest V3) that captures Google Meet's built-in closed captions without requiring any API calls.
 
-### Current Version: 3.8.4
+### Current Version: 3.8.9
 
 **Key Features:**
 - **Real-time caption capture** from Google Meet closed captions
@@ -195,6 +195,45 @@ if (this.captions.length > this.maxSize) {
 ```
 
 ## Version History Summary
+
+### v3.8.9 - Per-Speaker Duplicate Prevention (2025-12-26)
+- Fixed duplicate caption issue where same text was saved multiple times
+- Added `speakerLastCaptured` Map to track last captured text per speaker
+- `processSpeakerCaption()` now checks `speakerLastCaptured` before processing
+- `cleanupInactiveSpeakers()` only flushes if text wasn't already captured
+- Added `clearSpeakerLastCaptured()` helper function
+- Handles simultaneous speech from multiple speakers correctly
+
+### v3.8.8 - Per-Speaker State Tracking & Save Fix (2025-12-26)
+- Fixed issue where only the last speaker's caption was being saved
+- Added `speakerStates` Map to track each speaker's caption state independently
+- Each speaker gets their own debounce timer and state tracking
+- `processSpeakerCaption()` handles per-speaker debouncing
+- `cleanupInactiveSpeakers()` flushes pending captions when speakers stop talking
+- `clearAllSpeakerStates()` helper for cleanup on start/stop/overflow
+- All pending captions are flushed when stop button is clicked
+
+### v3.8.7 - Multi-Speaker DOM Structure Fix (2025-12-26)
+- Fixed to detect multiple `.nMcdL.bj4p3b` caption elements in Google Meet
+- Each element contains: `.NWpY1d` (speaker name) + `.ygicle.VbkSUe` (caption text)
+- Process all caption items and show multi-line pending display for active speakers
+- Added fallback for legacy single-element caption structures
+- New helper function `processCaptionItem()` for debounced single caption processing
+
+### v3.8.6 - Speaker Separation & Display Fix (2025-12-26)
+- Fixed speaker name extraction to properly detect speakers from Google Meet CC DOM
+- Separated speaker name from text field for proper duplicate detection
+- New format: `[timestamp][speaker] text` with visual speaker tags
+- Speaker change always creates new entry with fresh timestamp
+- Duplicate detection based on text only (speaker excluded)
+- Added CSS styling for speaker names (yellow background badge)
+- Fixed pendingSpeaker state management across start/stop cycles
+
+### v3.8.5 - Speaker Separation Fix (2025-12-26)
+- Fixed speaker change detection to create new entries with fresh timestamps
+- Added explicit speaker comparison: when speakers differ, always create new entry
+- Prevents text accumulation across different speakers
+- Improved line breaks and timestamps for multi-speaker meetings
 
 ### v3.8.4 - Empty Placeholder Fix (2025-12-26)
 - Added empty 00:00:00 placeholder on capture start
